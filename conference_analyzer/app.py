@@ -251,6 +251,9 @@ class AnalyzerUI:
                     self._stat(str(len(result.relevant_papers)), f"Match “{result.theme}”")
                     self._stat(str(len(result.topics)), "Topics")
                 with ui.row().style("gap:8px;"):
+                    ui.button(
+                        "PPTX", icon="slideshow", on_click=self._download_pptx
+                    ).props("unelevated dense")
                     ui.button("JSON", icon="download", on_click=self._download_json).props(
                         "outline dense"
                     )
@@ -345,6 +348,25 @@ class AnalyzerUI:
     # ------------------------------------------------------------------ #
     # Exports
     # ------------------------------------------------------------------ #
+    async def _download_pptx(self) -> None:
+        if not self.result:
+            return
+        from .pptx_export import build_pptx
+
+        ui.notify("Building slide deck…", type="ongoing")
+        try:
+            data = await asyncio.to_thread(build_pptx, self.result)
+        except Exception as e:  # missing dependency or rendering failure
+            ui.notify(str(e), type="negative", multi_line=True)
+            return
+        ui.download.content(
+            data,
+            "analysis.pptx",
+            media_type=(
+                "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+            ),
+        )
+
     def _download_json(self) -> None:
         if not self.result:
             return
