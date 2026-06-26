@@ -12,8 +12,18 @@ def _index() -> None:
     create_ui()
 
 
+def _load_env() -> None:
+    """Load variables from a local .env file, if present."""
+    try:
+        from dotenv import load_dotenv
+    except ImportError:  # python-dotenv is a dependency, but stay defensive
+        return
+    load_dotenv()
+
+
 def main() -> None:
     """Launch the web UI (used by the ``conference-analyzer`` script)."""
+    _load_env()
     ui.run(
         title="Conference Paper Analyzer",
         host="0.0.0.0",

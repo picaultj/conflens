@@ -23,9 +23,12 @@ Requires Python 3.13+ and [uv](https://docs.astral.sh/uv/).
 
 ```bash
 uv sync                                   # Claude/Anthropic works out of the box
-export ANTHROPIC_API_KEY=sk-ant-...       # key for your chosen provider (see below)
+cp .env.example .env                       # then fill in your provider key(s)
 uv run conference-analyzer                # or: uv run python run.py
 ```
+
+Keys are read from `.env` (loaded automatically) or the process environment;
+you can also paste a key into the app's **API key** field at runtime.
 
 Then open <http://localhost:8080>.
 
