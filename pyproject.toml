@@ -1,0 +1,27 @@
+[project]
+name = "conference-analyzer"
+version = "0.1.0"
+description = "Browse, theme-classify, and topic-model conference papers with a NiceGUI UI."
+readme = "README.md"
+requires-python = ">=3.13"
+license = { text = "MIT" }
+dependencies = [
+    "nicegui>=2.0",
+    "anthropic>=0.40",
+    "python-pptx>=0.6.21",
+]
+
+[project.optional-dependencies]
+# Optional embedding-based topic backend. Heavy (pulls in sentence-transformers
+# / torch); install with `uv sync --extra bertopic`.
+bertopic = ["bertopic>=0.16"]
+
+[project.scripts]
+conference-analyzer = "conference_analyzer.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["conference_analyzer"]

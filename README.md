@@ -19,13 +19,18 @@ navy accent, clean cards.
 
 ## Quick start
 
+Requires Python 3.13+ and [uv](https://docs.astral.sh/uv/).
+
 ```bash
-pip install -r requirements.txt
-export ANTHROPIC_API_KEY=sk-ant-...      # required for classification + topics
-python run.py
+uv sync                                   # creates a 3.13 venv from pyproject.toml + uv.lock
+export ANTHROPIC_API_KEY=sk-ant-...       # required for classification + topics
+uv run conference-analyzer                # or: uv run python run.py
 ```
 
 Then open <http://localhost:8080>.
+
+`uv` provisions the right Python automatically (pinned to 3.13 via
+`.python-version`); you don't need to install it yourself.
 
 > **Note on the default event:** ACL 2026 proceedings may not be published yet.
 > The app handles this gracefully and tells you so — try a past event such as
@@ -85,7 +90,7 @@ is a handful of API calls. Use `claude-haiku-4-5` to minimise cost.
 ## Optional: BERTopic
 
 ```bash
-pip install bertopic
+uv sync --extra bertopic
 ```
 
 Then pick **BERTopic** as the topic engine in the UI. It clusters
