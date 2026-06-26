@@ -58,7 +58,9 @@ Then open <http://localhost:8080>.
 - Per-topic bar chart of paper counts.
 - Expandable abstracts and a per-paper relevance rationale.
 - One-click **PDF** links to every paper's full text.
-- Export results as **JSON** or **CSV**.
+- Export results as a **PPTX** slide deck, **JSON**, or **CSV**.
+  The deck (built with `python-pptx`) has a title slide, a papers-per-topic
+  chart, and one slide per topic listing its papers with clickable PDF links.
 - On-disk caching of scraped data so re-runs are fast (see below).
 
 ## Caching
