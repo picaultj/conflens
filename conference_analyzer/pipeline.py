@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from typing import Callable, Optional
 
 from . import classifier, topics as topic_mod
-from .llm import LLMClient
+from .llm import make_client
 from .models import AnalysisResult
 from .scraper import AnthologyScraper
 
@@ -34,7 +34,10 @@ class AnalysisConfig:
     base_url: str = "https://aclanthology.org"
     event: str = "acl-2026"
     theme: str = "Agentic AI"
+    provider: str = "anthropic"    # "anthropic" | "openai" | "litellm"
     model: str = "claude-opus-4-8"
+    llm_base_url: str = ""         # custom endpoint (LiteLLM / OpenAI-compatible)
+    api_key: str = ""              # overrides the provider's env var if set
     max_papers: int = 150
     n_topics: int = 8
     min_confidence: float = 0.5
@@ -78,7 +81,7 @@ def run_analysis(
     result.scanned = len(papers)
 
     # 3. Classify -------------------------------------------------------
-    client = LLMClient(model=cfg.model)
+    client = make_client(cfg.provider, cfg.model, cfg.api_key, cfg.llm_base_url)
 
     def cls_prog(done: int, total: int) -> None:
         progress.set("classify", f"Classifying for '{cfg.theme}' ({done}/{total})", done / max(total, 1))

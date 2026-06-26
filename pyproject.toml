@@ -12,6 +12,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Extra LLM providers (Anthropic/Claude works out of the box).
+openai = ["openai>=1.40"]
+litellm = ["litellm>=1.40"]
+# Both extra providers at once.
+all = ["openai>=1.40", "litellm>=1.40"]
 # Optional embedding-based topic backend. Heavy (pulls in sentence-transformers
 # / torch); install with `uv sync --extra bertopic`.
 bertopic = ["bertopic>=0.16"]
