@@ -22,8 +22,8 @@ navy accent, clean cards.
 Requires Python 3.13+ and [uv](https://docs.astral.sh/uv/).
 
 ```bash
-uv sync                                   # creates a 3.13 venv from pyproject.toml + uv.lock
-export ANTHROPIC_API_KEY=sk-ant-...       # required for classification + topics
+uv sync                                   # Claude/Anthropic works out of the box
+export ANTHROPIC_API_KEY=sk-ant-...       # key for your chosen provider (see below)
 uv run conference-analyzer                # or: uv run python run.py
 ```
 
@@ -31,6 +31,21 @@ Then open <http://localhost:8080>.
 
 `uv` provisions the right Python automatically (pinned to 3.13 via
 `.python-version`); you don't need to install it yourself.
+
+### LLM providers
+
+The classifier and topic engine work with three providers, chosen in the UI:
+
+| Provider | Install | API key (env var or the in-app field) | Notes |
+|----------|---------|----------------------------------------|-------|
+| **Anthropic** (default) | included | `ANTHROPIC_API_KEY` | Claude models, native structured output |
+| **OpenAI** | `uv sync --extra openai` | `OPENAI_API_KEY` | OpenAI or any OpenAI-compatible base URL |
+| **LiteLLM** | `uv sync --extra litellm` | `LITELLM_API_KEY` / `OPENAI_API_KEY` | point **LLM endpoint** at your own LiteLLM URL |
+
+Install both extra providers with `uv sync --extra all`. In the app, pick the
+**LLM provider**, set the **Model**, and (for LiteLLM / OpenAI-compatible
+servers) the **LLM endpoint**. An **API key** field overrides the env var when
+set — handy for a self-hosted endpoint.
 
 > **Note on the default event:** ACL 2026 proceedings may not be published yet.
 > The app handles this gracefully and tells you so — try a past event such as
@@ -52,8 +67,11 @@ Then open <http://localhost:8080>.
   point at a compatible mirror.
 - **Event** — a slug (`acl-2024`, `emnlp-2023`, …) or a full event URL.
 - **Theme** — any phrase; defaults to *Agentic AI*.
-- **Model** — `claude-opus-4-8` (default), `claude-sonnet-4-6`, or
-  `claude-haiku-4-5` (cheapest for the classification pass).
+- **LLM provider** — Anthropic (default), OpenAI, or LiteLLM.
+- **Model** — free-text; defaults per provider (e.g. `claude-opus-4-8`,
+  `gpt-4o-mini`). Suggestions appear as placeholder text.
+- **LLM endpoint / API key** — a custom base URL (LiteLLM or any
+  OpenAI-compatible server) and an optional key override.
 - **Topic engine** — `LLM` (no extra deps) or `BERTopic` (requires the
   optional `bertopic` install).
 - **Max papers**, **target topics**, **minimum confidence** — tuning knobs.
@@ -84,8 +102,9 @@ to bypass and rebuild the cache.
 
 ## Cost
 
-Classification batches ~20 papers per request at low effort, so a 150-paper run
-is a handful of API calls. Use `claude-haiku-4-5` to minimise cost.
+Classification batches ~20 papers per request, so a 150-paper run is a handful
+of API calls. Pick a small model (e.g. `claude-haiku-4-5` or `gpt-4o-mini`) to
+minimise cost.
 
 ## Optional: BERTopic
 

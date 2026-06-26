@@ -11,7 +11,7 @@ from typing import Optional
 
 from nicegui import ui
 
-from .llm import AVAILABLE_MODELS, DEFAULT_MODEL, has_api_key
+from .llm import DEFAULT_MODELS, MODEL_SUGGESTIONS, PROVIDERS, env_key_for
 from .models import AnalysisResult
 from .pipeline import AnalysisConfig, Progress, run_analysis
 
@@ -77,15 +77,6 @@ class AnalyzerUI:
 
         with ui.column().classes("w-full items-center").style("padding:24px 12px;"):
             with ui.column().style("width:100%; max-width:1080px; gap:18px;"):
-                if not has_api_key():
-                    with ui.row().classes("w-full ca-card items-center").style(
-                        "padding:12px 16px; border-color:#f0c36d; background:#fffbeb;"
-                    ):
-                        ui.icon("warning").style("color:#b7791f;")
-                        ui.label(
-                            "ANTHROPIC_API_KEY is not set. Scraping works, but "
-                            "classification and topic modelling need an API key."
-                        ).classes("ca-muted")
                 self._build_config()
                 self._build_progress()
                 self.results_container = ui.column().style("width:100%; gap:18px;")
@@ -105,15 +96,28 @@ class AnalyzerUI:
             with ui.row().classes("w-full").style("gap:16px; flex-wrap:wrap;"):
                 self.theme = ui.input("Theme", value="Agentic AI").props(
                     "outlined dense"
-                ).style("flex:2 1 260px;")
-                self.model = ui.select(
-                    AVAILABLE_MODELS, value=DEFAULT_MODEL, label="Model"
+                ).style("flex:2 1 220px;")
+                self.provider = ui.select(
+                    PROVIDERS, value="anthropic", label="LLM provider"
+                ).props("outlined dense").style("flex:1 1 150px;")
+                self.model = ui.input(
+                    "Model", value=DEFAULT_MODELS["anthropic"]
                 ).props("outlined dense").style("flex:1 1 200px;")
                 self.backend = ui.select(
                     {"llm": "LLM topics", "bertopic": "BERTopic"},
                     value="llm",
                     label="Topic engine",
-                ).props("outlined dense").style("flex:1 1 160px;")
+                ).props("outlined dense").style("flex:1 1 150px;")
+            with ui.row().classes("w-full items-center").style("gap:16px; flex-wrap:wrap;"):
+                self.llm_base_url = ui.input(
+                    "LLM endpoint (LiteLLM / OpenAI-compatible)", value=""
+                ).props("outlined dense clearable").style("flex:2 1 320px;")
+                self.api_key = ui.input("API key (optional — overrides env var)", value="").props(
+                    "outlined dense type=password clearable"
+                ).style("flex:1 1 240px;")
+            self.key_hint = ui.label("").classes("ca-muted").style("font-size:.78rem;")
+            self.provider.on_value_change(lambda e: self._on_provider_change(e.value))
+            self._on_provider_change("anthropic")
             with ui.row().classes("w-full items-center").style("gap:24px; flex-wrap:wrap;"):
                 with ui.column().style("flex:1 1 220px; gap:2px;"):
                     ui.label("Max papers to scan").classes("ca-muted").style("font-size:.8rem;")
@@ -149,6 +153,31 @@ class AnalyzerUI:
                     "unelevated"
                 )
 
+    def _on_provider_change(self, provider: str) -> None:
+        """Update the default model, endpoint relevance and key hint per provider."""
+        self.model.set_value(DEFAULT_MODELS.get(provider, ""))
+        suggestions = ", ".join(MODEL_SUGGESTIONS.get(provider, []))
+        self.model.props(f'placeholder="{suggestions}"')
+        needs_endpoint = provider == "litellm"
+        self.llm_base_url.props(
+            "outlined dense clearable"
+            + (" required" if needs_endpoint else "")
+        )
+        has_env = bool(env_key_for(provider))
+        env_var = {
+            "anthropic": "ANTHROPIC_API_KEY",
+            "openai": "OPENAI_API_KEY",
+            "litellm": "LITELLM_API_KEY / OPENAI_API_KEY",
+        }.get(provider, "")
+        parts = [f"Models e.g.: {suggestions}." if suggestions else ""]
+        if has_env:
+            parts.append(f"Using {env_var} from the environment.")
+        else:
+            parts.append(f"No {env_var} found — set it or fill the API key field.")
+        if needs_endpoint:
+            parts.append("LiteLLM: enter your endpoint above.")
+        self.key_hint.set_text("  ".join(p for p in parts if p))
+
     def _build_progress(self) -> None:
         self.progress_card = ui.card().classes("w-full ca-card").style(
             "padding:18px; display:none;"
@@ -182,7 +211,10 @@ class AnalyzerUI:
             base_url=self.base_url.value.strip(),
             event=self.event.value.strip(),
             theme=self.theme.value.strip() or "Agentic AI",
-            model=self.model.value,
+            provider=self.provider.value,
+            model=(self.model.value or "").strip(),
+            llm_base_url=(self.llm_base_url.value or "").strip(),
+            api_key=(self.api_key.value or "").strip(),
             max_papers=int(self.max_papers.value or 150),
             n_topics=int(self.n_topics.value or 8),
             min_confidence=float(self.min_conf.value),
