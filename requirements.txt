@@ -1,0 +1,6 @@
+nicegui>=2.0
+anthropic>=0.40
+
+# Optional: enables the BERTopic topic-modelling backend.
+# Heavy (pulls in sentence-transformers / torch); install only if you need it.
+# bertopic>=0.16
