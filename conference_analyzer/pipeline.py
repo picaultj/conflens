@@ -39,6 +39,7 @@ class AnalysisConfig:
     n_topics: int = 8
     min_confidence: float = 0.5
     topic_backend: str = "llm"     # "llm" | "bertopic"
+    refresh: bool = False          # bypass the scrape cache and refetch from source
 
 
 def run_analysis(
@@ -52,8 +53,9 @@ def run_analysis(
     result = AnalysisResult(theme=cfg.theme, event_url=event_url)
 
     # 1. List papers ----------------------------------------------------
-    progress.set("listing", f"Fetching paper list from {event_url}", 0.0)
-    papers = scraper.list_papers(cfg.event)
+    source = "source" if cfg.refresh else "cache or source"
+    progress.set("listing", f"Fetching paper list from {event_url} ({source})", 0.0)
+    papers = scraper.list_papers(cfg.event, force_refresh=cfg.refresh)
     if not papers:
         progress.set(
             "listing",
@@ -71,7 +73,7 @@ def run_analysis(
     def abs_prog(done: int, total: int) -> None:
         progress.set("abstracts", f"Fetching abstracts ({done}/{total})", done / max(total, 1))
 
-    scraper.enrich_abstracts(papers, progress=abs_prog)
+    scraper.enrich_abstracts(papers, progress=abs_prog, force_refresh=cfg.refresh)
     result.papers = papers
     result.scanned = len(papers)
 

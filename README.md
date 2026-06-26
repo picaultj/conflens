@@ -59,7 +59,21 @@ Then open <http://localhost:8080>.
 - Expandable abstracts and a per-paper relevance rationale.
 - One-click **PDF** links to every paper's full text.
 - Export results as **JSON** or **CSV**.
-- On-disk caching of abstracts so re-runs are fast.
+- On-disk caching of scraped data so re-runs are fast (see below).
+
+## Caching
+
+All scraping is cached on disk under `~/.cache/conference_analyzer`:
+
+- the **event listing** is cached per event URL, and
+- each paper's **abstract + authors** is cached per paper id.
+
+Because classification and topic modelling are the only theme-dependent stages,
+running the analyzer **again with a different theme on the same event reuses the
+cached scrape entirely** — no pages are re-downloaded, so only the LLM stages
+run. Tick **“Refresh from source”** in the UI (or call
+`list_papers(..., force_refresh=True)` / `enrich_abstracts(..., force_refresh=True)`)
+to bypass and rebuild the cache.
 
 ## Cost
 
