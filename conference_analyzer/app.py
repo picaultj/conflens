@@ -137,7 +137,14 @@ class AnalyzerUI:
                     self.min_conf.on_value_change(
                         lambda e: self.conf_label.set_text(f"Min. confidence: {e.value:.2f}")
                     )
-            with ui.row().classes("w-full justify-end").style("margin-top:6px;"):
+            with ui.row().classes("w-full items-center justify-between").style(
+                "margin-top:6px;"
+            ):
+                self.refresh = ui.checkbox("Refresh from source (ignore cache)", value=False)
+                self.refresh.tooltip(
+                    "Scraped listings and abstracts are cached on disk and reused across "
+                    "runs — including when you change the theme. Tick this to refetch."
+                )
                 self.run_btn = ui.button("Analyze", icon="play_arrow", on_click=self.start).props(
                     "unelevated"
                 )
@@ -180,6 +187,7 @@ class AnalyzerUI:
             n_topics=int(self.n_topics.value or 8),
             min_confidence=float(self.min_conf.value),
             topic_backend=self.backend.value,
+            refresh=bool(self.refresh.value),
         )
 
         self.timer = ui.timer(0.25, self._tick)

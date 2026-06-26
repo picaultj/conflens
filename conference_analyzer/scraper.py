@@ -17,6 +17,7 @@ Abstracts are fetched lazily and cached on disk so re-runs are cheap.
 from __future__ import annotations
 
 import concurrent.futures
+import hashlib
 import html
 import http.client
 import json
@@ -95,15 +96,25 @@ class AnthologyScraper:
     def _get(self, url: str) -> str:
         req = urllib.request.Request(url, headers={"User-Agent": _UA})
         last_err: Optional[Exception] = None
-        for attempt in range(3):
+        partial_best = ""
+        for attempt in range(4):
             try:
                 with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                     return resp.read().decode("utf-8", "replace")
-            except http.client.IncompleteRead as e:  # large pages occasionally truncate
-                return e.partial.decode("utf-8", "replace")
+            except http.client.IncompleteRead as e:
+                # Large listing pages occasionally truncate. Retry for a complete
+                # read so we don't cache a partial listing; keep the longest
+                # partial seen as a last-resort fallback.
+                chunk = e.partial.decode("utf-8", "replace")
+                if len(chunk) > len(partial_best):
+                    partial_best = chunk
+                last_err = e
+                time.sleep(1.0 * (attempt + 1))
             except (urllib.error.URLError, TimeoutError) as e:
                 last_err = e
                 time.sleep(1.5 * (attempt + 1))
+        if partial_best:
+            return partial_best
         raise RuntimeError(f"Failed to fetch {url}: {last_err}")
 
     def event_url(self, event: str) -> str:
@@ -119,9 +130,41 @@ class AnthologyScraper:
     # ------------------------------------------------------------------ #
     # Listing
     # ------------------------------------------------------------------ #
-    def list_papers(self, event: str, include_frontmatter: bool = False) -> list[Paper]:
-        """Return every paper listed on an event page (without abstracts)."""
+    def _listing_cache_path(self, key: str) -> str:
+        digest = hashlib.sha1(key.encode("utf-8")).hexdigest()[:16]
+        return os.path.join(self.cache_dir, f"listing_{digest}.json")
+
+    def list_papers(
+        self,
+        event: str,
+        include_frontmatter: bool = False,
+        force_refresh: bool = False,
+    ) -> list[Paper]:
+        """Return every paper listed on an event page (without abstracts).
+
+        The parsed listing is cached on disk and keyed by event URL, so running
+        several analyses (e.g. for different themes) against the same event does
+        not re-download the multi-megabyte listing page. Pass
+        ``force_refresh=True`` to bypass and rebuild the cache.
+        """
         url = self.event_url(event)
+        cache = self._listing_cache_path(url + ("|fm" if include_frontmatter else ""))
+        if not force_refresh and os.path.exists(cache):
+            try:
+                with open(cache, "r", encoding="utf-8") as fh:
+                    data = json.load(fh)
+                return [
+                    Paper(
+                        paper_id=p["paper_id"],
+                        title=p["title"],
+                        url=p["url"],
+                        pdf_url=p["pdf_url"],
+                    )
+                    for p in data.get("papers", [])
+                ]
+            except (OSError, json.JSONDecodeError, KeyError, TypeError):
+                pass  # corrupt/legacy cache — fall through and refetch
+
         page = self._get(url)
         seen: set[str] = set()
         papers: list[Paper] = []
@@ -144,6 +187,25 @@ class AnthologyScraper:
                     pdf_url=f"{self.base_url}/{pid}.pdf",
                 )
             )
+        try:
+            with open(cache, "w", encoding="utf-8") as fh:
+                json.dump(
+                    {
+                        "event_url": url,
+                        "papers": [
+                            {
+                                "paper_id": p.paper_id,
+                                "title": p.title,
+                                "url": p.url,
+                                "pdf_url": p.pdf_url,
+                            }
+                            for p in papers
+                        ],
+                    },
+                    fh,
+                )
+        except OSError:
+            pass
         return papers
 
     # ------------------------------------------------------------------ #
@@ -153,9 +215,9 @@ class AnthologyScraper:
         safe = pid.replace("/", "_")
         return os.path.join(self.cache_dir, f"{safe}.json")
 
-    def _fetch_detail(self, paper: Paper) -> Paper:
+    def _fetch_detail(self, paper: Paper, force_refresh: bool = False) -> Paper:
         cache = self._abstract_cache_path(paper.paper_id)
-        if os.path.exists(cache):
+        if not force_refresh and os.path.exists(cache):
             try:
                 with open(cache, "r", encoding="utf-8") as fh:
                     data = json.load(fh)
@@ -183,14 +245,17 @@ class AnthologyScraper:
         self,
         papers: list[Paper],
         progress: Optional[Callable[[int, int], None]] = None,
+        force_refresh: bool = False,
     ) -> list[Paper]:
-        """Fetch abstracts + authors for ``papers`` concurrently."""
+        """Fetch abstracts + authors for ``papers`` concurrently (disk-cached)."""
         total = len(papers)
         done = 0
         if progress:
             progress(0, total)
         with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers) as ex:
-            futures = {ex.submit(self._fetch_detail, p): p for p in papers}
+            futures = {
+                ex.submit(self._fetch_detail, p, force_refresh): p for p in papers
+            }
             for fut in concurrent.futures.as_completed(futures):
                 fut.result()
                 done += 1
