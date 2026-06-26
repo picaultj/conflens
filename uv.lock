@@ -302,6 +302,7 @@ source = { editable = "." }
 dependencies = [
     { name = "anthropic" },
     { name = "nicegui" },
+    { name = "python-dotenv" },
     { name = "python-pptx" },
 ]
 
@@ -329,6 +330,7 @@ requires-dist = [
     { name = "nicegui", specifier = ">=2.0" },
     { name = "openai", marker = "extra == 'all'", specifier = ">=1.40" },
     { name = "openai", marker = "extra == 'openai'", specifier = ">=1.40" },
+    { name = "python-dotenv", specifier = ">=1.0" },
     { name = "python-pptx", specifier = ">=0.6.21" },
 ]
 provides-extras = ["openai", "litellm", "all", "bertopic"]
