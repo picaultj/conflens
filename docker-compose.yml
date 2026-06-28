@@ -1,0 +1,23 @@
+services:
+  app:
+    build: .
+    image: conference-analyzer
+    ports:
+      - "8080:8080"
+    # API keys / endpoints — copy .env.example to .env first.
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      # Persist scraped listings, abstracts and classification results.
+      - cache:/home/app/.cache/conference_analyzer
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  cache:
