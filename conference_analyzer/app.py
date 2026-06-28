@@ -215,9 +215,26 @@ class AnalyzerUI:
     # ------------------------------------------------------------------ #
     # Run lifecycle
     # ------------------------------------------------------------------ #
+    def _validate(self) -> Optional[str]:
+        """Return a user-facing error if the form isn't ready to run, else None."""
+        if not (self.model.value or "").strip():
+            return "Please set a model before running."
+        if not (self.event.value or "").strip():
+            return "Please set the event / accepted-papers target."
+        if self.provider.value == "litellm" and not (self.llm_base_url.value or "").strip():
+            return "LiteLLM needs an LLM endpoint — fill the “LLM endpoint” field."
+        return None
+
     async def start(self) -> None:
         if self.running:
             return
+
+        # Validate inputs before doing any work.
+        error = self._validate()
+        if error:
+            ui.notify(error, type="warning")
+            return
+
         self.running = True
         self.progress = Progress()
         self.result = None
