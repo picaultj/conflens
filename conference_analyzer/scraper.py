@@ -117,6 +117,10 @@ class AnthologyScraper:
             return partial_best
         raise RuntimeError(f"Failed to fetch {url}: {last_err}")
 
+    def resolve_url(self, target: str) -> str:
+        """Unified source interface — alias of :meth:`event_url`."""
+        return self.event_url(target)
+
     def event_url(self, event: str) -> str:
         """Build an event URL from a slug, or pass through a full URL."""
         event = event.strip()

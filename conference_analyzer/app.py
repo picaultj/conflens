@@ -13,6 +13,7 @@ from nicegui import ui
 
 from .llm import DEFAULT_MODELS, MODEL_SUGGESTIONS, PROVIDERS, env_key_for
 from .models import AnalysisResult
+from .sources import SOURCES
 from .pipeline import AnalysisConfig, Progress, run_analysis
 
 # Sober, professional palette ------------------------------------------------
@@ -87,12 +88,20 @@ class AnalyzerUI:
                 f"font-weight:700; color:{INK}; font-size:1.05rem;"
             )
             with ui.row().classes("w-full").style("gap:16px; flex-wrap:wrap;"):
+                self.source = ui.select(
+                    {k: v["label"] for k, v in SOURCES.items()},
+                    value="aclanthology",
+                    label="Source",
+                ).props("outlined dense").style("flex:1 1 150px;")
                 self.base_url = ui.input(
-                    "Anthology base URL", value="https://aclanthology.org"
-                ).props("outlined dense").style("flex:1 1 260px;")
+                    SOURCES["aclanthology"]["base_label"],
+                    value=SOURCES["aclanthology"]["base"],
+                ).props("outlined dense").style("flex:2 1 240px;")
                 self.event = ui.input(
-                    "Event (slug or full URL)", value="acl-2026"
+                    SOURCES["aclanthology"]["target_label"],
+                    value=SOURCES["aclanthology"]["target"],
                 ).props("outlined dense").style("flex:1 1 200px;")
+            self.source.on_value_change(lambda e: self._on_source_change(e.value))
             with ui.row().classes("w-full").style("gap:16px; flex-wrap:wrap;"):
                 self.theme = ui.input("Theme", value="Agentic AI").props(
                     "outlined dense"
@@ -154,6 +163,16 @@ class AnalyzerUI:
                     "unelevated"
                 )
 
+    def _on_source_change(self, source: str) -> None:
+        """Prefill the base URL / target and relabel them for the chosen source."""
+        cfg = SOURCES.get(source)
+        if not cfg:
+            return
+        self.base_url.set_value(cfg["base"])
+        self.base_url.props(f'label="{cfg["base_label"]}"')
+        self.event.set_value(cfg["target"])
+        self.event.props(f'label="{cfg["target_label"]}"')
+
     def _on_provider_change(self, provider: str) -> None:
         """Update the default model, endpoint relevance and key hint per provider."""
         self.model.set_value(DEFAULT_MODELS.get(provider, ""))
@@ -209,6 +228,7 @@ class AnalyzerUI:
         self.log_area.clear()
 
         cfg = AnalysisConfig(
+            source=self.source.value,
             base_url=self.base_url.value.strip(),
             event=self.event.value.strip(),
             theme=self.theme.value.strip() or "Agentic AI",
@@ -360,13 +380,17 @@ class AnalyzerUI:
             f"gap:3px; padding:10px 0; border-top:1px solid {LINE};"
         ):
             with ui.row().classes("w-full items-start justify-between").style("gap:10px;"):
-                ui.link(p.title, p.url, new_tab=True).classes("ca-title")
+                if p.url:
+                    ui.link(p.title, p.url, new_tab=True).classes("ca-title")
+                else:
+                    ui.label(p.title).style(f"color:{INK}; font-weight:600;")
                 with ui.row().style("gap:6px; flex-wrap:nowrap;"):
                     if p.confidence is not None:
                         ui.label(f"{p.confidence:.0%}").classes("ca-badge").style(
                             f"background:{MUTED};"
                         ).tooltip("Relevance confidence")
-                    ui.link("PDF", p.pdf_url, new_tab=True).classes("ca-badge")
+                    if p.pdf_url:
+                        ui.link("PDF", p.pdf_url, new_tab=True).classes("ca-badge")
             if p.authors:
                 authors = ", ".join(p.authors[:6]) + ("…" if len(p.authors) > 6 else "")
                 ui.label(authors).classes("ca-muted").style("font-size:.8rem;")
