@@ -38,6 +38,32 @@ Then open <http://localhost:8080>.
 `uv` provisions the right Python automatically (pinned to 3.13 via
 `.python-version`); you don't need to install it yourself.
 
+### Run with Docker
+
+```bash
+cp .env.example .env          # fill in your provider key(s)
+docker compose up --build     # → http://localhost:8080
+```
+
+The image is built with `uv` on Python 3.13 and includes the OpenAI + LiteLLM
+providers. A named volume persists the cache (scrapes + classifications) across
+restarts. To clear the cache in a container:
+
+```bash
+docker compose run --rm app --clear-cache
+```
+
+Plain Docker (no compose) works too:
+
+```bash
+docker build -t conference-analyzer .
+docker run --rm -p 8080:8080 --env-file .env \
+  -v conf-cache:/home/app/.cache/conference_analyzer conference-analyzer
+```
+
+To also build the optional BERTopic backend into the image:
+`docker build --build-arg EXTRAS="--extra all --extra bertopic" -t conference-analyzer .`
+
 ### LLM providers
 
 The classifier and topic engine work with three providers, chosen in the UI:
