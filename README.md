@@ -2,9 +2,12 @@
 
 A desktop-style web app (built with [NiceGUI](https://nicegui.io)) that:
 
-1. **Browses** papers from the [ACL Anthology](https://aclanthology.org) — or any
-   structurally compatible site — for a chosen event (default
-   `acl-2026`) and retrieves their abstracts.
+1. **Browses** papers from a chosen **source** and retrieves their abstracts:
+   - the [ACL Anthology](https://aclanthology.org) (default; e.g. `acl-2026`), and
+   - **IJCAI** accepted-paper pages (e.g. <https://2026.ijcai.org/accepted-papers/>).
+
+   The scraper is pluggable — adding another conference is one adapter in
+   `conference_analyzer/sources.py`.
 2. **Classifies** each paper with an LLM (Claude) against a customizable
    **theme** (default *Agentic AI*), keeping only those whose core contribution
    matches.
@@ -58,7 +61,8 @@ set — handy for a self-hosted endpoint.
 
 | Stage | Module | Notes |
 |-------|--------|-------|
-| Scrape listing | `conference_analyzer/scraper.py` | Parses the event page; abstracts + authors are fetched per paper and cached on disk. |
+| Sources | `conference_analyzer/sources.py` | Pluggable adapters (ACL Anthology, IJCAI) behind one interface; registry + factory. |
+| Scrape listing | `conference_analyzer/scraper.py` | ACL Anthology adapter: parses the event page; abstracts + authors fetched per paper and cached. |
 | Classify | `conference_analyzer/classifier.py` | Batched, structured-output calls; relevance + confidence + a one-line reason per paper. |
 | Topic model | `conference_analyzer/topics.py` | `llm` backend derives a taxonomy and assigns papers; `bertopic` backend optional. |
 | Orchestrate | `conference_analyzer/pipeline.py` | Runs the three stages with progress reporting. |
@@ -66,9 +70,12 @@ set — handy for a self-hosted endpoint.
 
 ## Configuration (in the UI)
 
-- **Anthology base URL** — defaults to `https://aclanthology.org`; change it to
-  point at a compatible mirror.
-- **Event** — a slug (`acl-2024`, `emnlp-2023`, …) or a full event URL.
+- **Source** — `ACL Anthology` or `IJCAI`. Switching prefills the base URL and
+  target below and relabels them.
+- **Base URL** — the site root (e.g. `https://aclanthology.org`,
+  `https://2026.ijcai.org`); change it to point at a mirror or another year.
+- **Event / accepted-papers path** — for ACL, a slug (`acl-2024`, `emnlp-2023`,
+  …) or full event URL; for IJCAI, the accepted-papers path or full URL.
 - **Theme** — any phrase; defaults to *Agentic AI*.
 - **LLM provider** — Anthropic (default), OpenAI, or LiteLLM.
 - **Model** — free-text; defaults per provider (e.g. `claude-opus-4-8`,

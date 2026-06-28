@@ -8,7 +8,7 @@ from typing import Callable, Optional
 from . import classifier, topics as topic_mod
 from .llm import make_client
 from .models import AnalysisResult
-from .scraper import AnthologyScraper
+from .sources import make_source
 
 
 @dataclass
@@ -31,6 +31,7 @@ class Progress:
 
 @dataclass
 class AnalysisConfig:
+    source: str = "aclanthology"   # "aclanthology" | "ijcai"
     base_url: str = "https://aclanthology.org"
     event: str = "acl-2026"
     theme: str = "Agentic AI"
@@ -51,21 +52,22 @@ def run_analysis(
     cache_dir: Optional[str] = None,
 ) -> AnalysisResult:
     """Execute the full pipeline. Designed to run in a worker thread."""
-    scraper = AnthologyScraper(base_url=cfg.base_url, cache_dir=cache_dir)
-    event_url = scraper.event_url(cfg.event)
+    scraper = make_source(cfg.source, base_url=cfg.base_url, cache_dir=cache_dir)
+    event_url = scraper.resolve_url(cfg.event)
     result = AnalysisResult(theme=cfg.theme, event_url=event_url)
 
     # 1. List papers ----------------------------------------------------
-    source = "source" if cfg.refresh else "cache or source"
-    progress.set("listing", f"Fetching paper list from {event_url} ({source})", 0.0)
+    origin = "source" if cfg.refresh else "cache or source"
+    progress.set("listing", f"Fetching paper list from {event_url} ({origin})", 0.0)
     papers = scraper.list_papers(cfg.event, force_refresh=cfg.refresh)
     if not papers:
-        progress.set(
-            "listing",
-            "No papers found on that event page. The proceedings may not be "
-            "published yet — try a past event such as 'acl-2024'.",
-            1.0,
+        hint = (
+            " The proceedings may not be published yet — try a past event such "
+            "as 'acl-2024'."
+            if cfg.source == "aclanthology"
+            else " Check the URL points at the accepted-papers page."
         )
+        progress.set("listing", "No papers found on that page." + hint, 1.0)
         progress.done = True
         return result
     if cfg.max_papers and len(papers) > cfg.max_papers:

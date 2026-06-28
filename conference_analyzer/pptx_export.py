@@ -180,17 +180,19 @@ def build_pptx(result: "AnalysisResult") -> bytes:
                 p = tf.paragraphs[0] if first else tf.add_paragraph()
                 first = False
                 p.space_after = Pt(8)
-                # title (clickable -> landing page)
+                # title (clickable -> landing page when available)
                 trun = p.add_run()
                 style_run(trun, "• " + paper.title, 14, _NAVY, bold=True)
-                trun.hyperlink.address = paper.url
+                if paper.url:
+                    trun.hyperlink.address = paper.url
                 if paper.confidence is not None:
                     style_run(p.add_run(), f"   ({paper.confidence:.0%})", 11, _MUTED)
-                # PDF link
-                style_run(p.add_run(), "   ", 14, _INK)
-                pdf = p.add_run()
-                style_run(pdf, "[PDF]", 12, _ACCENT, bold=True)
-                pdf.hyperlink.address = paper.pdf_url
+                # PDF link (only when a PDF exists)
+                if paper.pdf_url:
+                    style_run(p.add_run(), "   ", 14, _INK)
+                    pdf = p.add_run()
+                    style_run(pdf, "[PDF]", 12, _ACCENT, bold=True)
+                    pdf.hyperlink.address = paper.pdf_url
                 # authors on a second line
                 if paper.authors:
                     authors = ", ".join(paper.authors[:6]) + (
