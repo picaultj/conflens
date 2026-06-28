@@ -89,7 +89,14 @@ def run_analysis(
         progress.set("classify", f"Classifying for '{cfg.theme}' ({done}/{total})", done / max(total, 1))
 
     relevant = classifier.classify_papers(
-        client, cfg.theme, papers, min_confidence=cfg.min_confidence, progress=cls_prog
+        client,
+        cfg.theme,
+        papers,
+        min_confidence=cfg.min_confidence,
+        progress=cls_prog,
+        cache_dir=cache_dir,
+        cache_sig=f"{cfg.provider}:{cfg.model}",
+        force_refresh=cfg.refresh,
     )
     result.relevant_papers = relevant
     progress.set("classify", f"{len(relevant)} of {len(papers)} papers match the theme.", 1.0)
