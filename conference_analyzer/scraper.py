@@ -31,7 +31,7 @@ from typing import Callable, Optional
 
 from .models import Paper
 
-_UA = "conference-analyzer/0.1 (+https://github.com/picaultj/conference_analyzer)"
+_UA = "conflens/0.1 (+https://github.com/picaultj/conflens)"
 _DEFAULT_BASE = "https://aclanthology.org"
 
 # A paper landing-page anchor, e.g.  <a ... href=/2024.acl-long.1/>Title</a>
