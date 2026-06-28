@@ -98,10 +98,10 @@ class AnalyzerUI:
                     "outlined dense"
                 ).style("flex:2 1 220px;")
                 self.provider = ui.select(
-                    PROVIDERS, value="anthropic", label="LLM provider"
+                    PROVIDERS, value="litellm", label="LLM provider"
                 ).props("outlined dense").style("flex:1 1 150px;")
                 self.model = ui.input(
-                    "Model", value=DEFAULT_MODELS["anthropic"]
+                    "Model", value=DEFAULT_MODELS["litellm"]
                 ).props("outlined dense").style("flex:1 1 200px;")
                 self.backend = ui.select(
                     {"llm": "LLM topics", "bertopic": "BERTopic"},
@@ -110,18 +110,19 @@ class AnalyzerUI:
                 ).props("outlined dense").style("flex:1 1 150px;")
             with ui.row().classes("w-full items-center").style("gap:16px; flex-wrap:wrap;"):
                 self.llm_base_url = ui.input(
-                    "LLM endpoint (LiteLLM / OpenAI-compatible)", value=""
+                    "LLM endpoint (LiteLLM / OpenAI-compatible)",
+                    value=os.environ.get("OPENAI_BASE_URL", ""),
                 ).props("outlined dense clearable").style("flex:2 1 320px;")
                 self.api_key = ui.input("API key (optional — overrides env var)", value="").props(
                     "outlined dense type=password clearable"
                 ).style("flex:1 1 240px;")
             self.key_hint = ui.label("").classes("ca-muted").style("font-size:.78rem;")
             self.provider.on_value_change(lambda e: self._on_provider_change(e.value))
-            self._on_provider_change("anthropic")
+            self._on_provider_change("litellm")
             with ui.row().classes("w-full items-center").style("gap:24px; flex-wrap:wrap;"):
                 with ui.column().style("flex:1 1 220px; gap:2px;"):
                     ui.label("Max papers to scan").classes("ca-muted").style("font-size:.8rem;")
-                    self.max_papers = ui.number(value=150, min=1, max=2000, step=10).props(
+                    self.max_papers = ui.number(value=150, min=1, max=10000, step=10).props(
                         "outlined dense"
                     ).classes("w-full")
                 with ui.column().style("flex:1 1 220px; gap:2px;"):
