@@ -1,4 +1,4 @@
-# Conference Paper Analyzer
+# ConfLens: a Conference Paper Analyzer
 
 A desktop-style web app (built with [NiceGUI](https://nicegui.io)) that:
 
