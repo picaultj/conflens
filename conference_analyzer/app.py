@@ -156,8 +156,9 @@ class AnalyzerUI:
             ):
                 self.refresh = ui.checkbox("Refresh from source (ignore cache)", value=False)
                 self.refresh.tooltip(
-                    "Scraped listings and abstracts are cached on disk and reused across "
-                    "runs — including when you change the theme. Tick this to refetch."
+                    "Scraped listings/abstracts AND classification results are cached on "
+                    "disk and reused across runs (re-running the same theme + model is "
+                    "instant). Tick this to refetch and re-classify from scratch."
                 )
                 self.run_btn = ui.button("Analyze", icon="play_arrow", on_click=self.start).props(
                     "unelevated"

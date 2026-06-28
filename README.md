@@ -98,17 +98,20 @@ set — handy for a self-hosted endpoint.
 
 ## Caching
 
-All scraping is cached on disk under `~/.cache/conference_analyzer`:
+Everything expensive is cached on disk under `~/.cache/conference_analyzer`:
 
-- the **event listing** is cached per event URL, and
-- each paper's **abstract + authors** is cached per paper id.
+- the **event listing** is cached per event/page URL,
+- each paper's **abstract + authors** is cached per paper id, and
+- **classification results** are cached per *(provider + model, theme)* and keyed
+  by each paper's title+abstract hash. The raw model judgement is stored, so the
+  **minimum-confidence** threshold is applied at read time — adjusting it never
+  triggers a re-call.
 
-Because classification and topic modelling are the only theme-dependent stages,
-running the analyzer **again with a different theme on the same event reuses the
-cached scrape entirely** — no pages are re-downloaded, so only the LLM stages
-run. Tick **“Refresh from source”** in the UI (or call
-`list_papers(..., force_refresh=True)` / `enrich_abstracts(..., force_refresh=True)`)
-to bypass and rebuild the cache.
+So re-running with a **different theme** reuses the cached scrape (only
+classification re-runs), and **re-running the same theme + model is essentially
+free**. Changing the model or a paper's abstract re-classifies only what's
+affected. Tick **“Refresh from source”** in the UI to bypass every cache and
+rebuild from scratch.
 
 ## Cost
 
