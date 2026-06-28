@@ -11,6 +11,7 @@ from typing import Optional
 
 from nicegui import ui
 
+from .cache import default_cache_dir
 from .llm import DEFAULT_MODELS, MODEL_SUGGESTIONS, PROVIDERS, env_key_for
 from .models import AnalysisResult
 from .sources import SOURCES
@@ -27,7 +28,7 @@ TOPIC_COLORS = [
     "#975a16", "#9b2c2c", "#6b46c1", "#b83280", "#4a5568",
 ]
 
-_CACHE_DIR = os.path.join(os.path.expanduser("~"), ".cache", "conference_analyzer")
+_CACHE_DIR = default_cache_dir()
 
 
 class AnalyzerUI:

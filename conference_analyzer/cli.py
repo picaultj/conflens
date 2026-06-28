@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import argparse
+
 from nicegui import ui
 
 from .app import create_ui
+from .cache import clear_cache, default_cache_dir
 
 
 @ui.page("/")
@@ -21,13 +24,40 @@ def _load_env() -> None:
     load_dotenv()
 
 
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        prog="conference-analyzer",
+        description="Browse, theme-classify, and topic-model conference papers.",
+    )
+    parser.add_argument(
+        "--clear-cache",
+        action="store_true",
+        help="delete cached scrapes and classification results, then exit",
+    )
+    parser.add_argument(
+        "--cache-dir",
+        default=None,
+        help=f"cache directory (default: {default_cache_dir()})",
+    )
+    parser.add_argument("--host", default="0.0.0.0", help="host to bind (default: 0.0.0.0)")
+    parser.add_argument("--port", type=int, default=8080, help="port to bind (default: 8080)")
+    return parser.parse_args(argv)
+
+
 def main() -> None:
-    """Launch the web UI (used by the ``conference-analyzer`` script)."""
+    """Launch the web UI, or run a maintenance command."""
+    args = _parse_args()
+
+    if args.clear_cache:
+        target, removed = clear_cache(args.cache_dir)
+        print(f"Cleared {removed} item(s) from {target}")
+        return
+
     _load_env()
     ui.run(
         title="Conference Paper Analyzer",
-        host="0.0.0.0",
-        port=8080,
+        host=args.host,
+        port=args.port,
         reload=False,
         favicon="🔬",
     )

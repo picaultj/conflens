@@ -113,6 +113,15 @@ free**. Changing the model or a paper's abstract re-classifies only what's
 affected. Tick **“Refresh from source”** in the UI to bypass every cache and
 rebuild from scratch.
 
+To wipe the cache from the command line:
+
+```bash
+uv run conference-analyzer --clear-cache          # default ~/.cache/conference_analyzer
+uv run conference-analyzer --clear-cache --cache-dir /path/to/cache
+```
+
+Other flags: `--host`, `--port` (run `conference-analyzer --help`).
+
 ## Cost
 
 Classification batches ~20 papers per request, so a 150-paper run is a handful
