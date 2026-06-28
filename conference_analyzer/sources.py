@@ -33,7 +33,7 @@ from typing import Callable, Optional
 from .models import Paper
 from .scraper import AnthologyScraper, _clean
 
-_UA = "conference-analyzer/0.1 (+https://github.com/picaultj/conference_analyzer)"
+_UA = "conflens/0.1 (+https://github.com/picaultj/conflens)"
 
 
 def _robust_get(url: str, timeout: int = 120) -> str:
