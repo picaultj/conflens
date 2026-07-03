@@ -1,0 +1,84 @@
+# AGENTS.md
+
+Guidance for coding agents (and humans) working in this repository. See
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for diagrams.
+
+## What this is
+
+**ConfLens** — a NiceGUI web app that browses conference papers (ACL Anthology,
+IJCAI), classifies them against a theme with an LLM, discovers topics, and
+synthesises per-topic findings. Python 3.13, managed with **uv**.
+
+## Setup & run
+
+```bash
+uv sync                        # base install (Anthropic provider)
+uv sync --extra all            # + OpenAI and LiteLLM providers
+uv sync --extra bertopic       # + BERTopic topic backend (heavy)
+
+cp .env.example .env           # add provider key(s); loaded automatically
+uv run conference-analyzer     # serve on http://localhost:8080
+uv run conference-analyzer --clear-cache   # wipe the on-disk cache
+```
+
+Docker: `docker compose up --build` (see the README).
+
+## Checks before you commit
+
+There is no formal test suite; verify changes like this:
+
+- **Compile everything:** `uv run python -m py_compile conference_analyzer/*.py run.py`
+- **Boot the app:** run `uv run conference-analyzer`, confirm `GET /` returns 200
+  and the logs are clean.
+- **Scraper/parser changes:** validate against the live page (counts, a sample
+  record's title/authors/abstract). The ACL listing pages are large and may
+  truncate mid-download — `_robust_get` retries for a complete read; don't cache
+  a partial.
+- **Classifier / topics logic:** exercise with a small fake `LLMClient` (a class
+  with a `structured()` method) rather than real API calls — see how the caching
+  behaviour was validated in the commit history.
+
+Keep changes ASCII-clean and match the surrounding style (dataclasses, targeted
+regexes over heavyweight parsers, small focused modules).
+
+## Where things live
+
+| Area | Module |
+|------|--------|
+| UI + exports | `app.py`, `pptx_export.py` |
+| Orchestration | `pipeline.py` (`AnalysisConfig`, `run_analysis`) |
+| Sources (scraping) | `sources.py` (registry + `make_source`), `scraper.py` |
+| LLM providers | `llm.py` (`LLMClient`, `make_client`) |
+| Classify / topics | `classifier.py`, `topics.py` |
+| Cache / models | `cache.py`, `models.py` |
+
+## Conventions
+
+- **All LLM calls go through `llm.py`'s `structured()`** — never call a provider
+  SDK directly from `classifier.py` / `topics.py`.
+- **Add a conference**: implement `resolve_url` / `list_papers` /
+  `enrich_abstracts` in `sources.py`, then register it in `SOURCES`.
+- **Add an LLM provider**: add an `LLMClient` subclass + a branch in
+  `make_client()`. Everything downstream uses the same interface.
+- **Anything expensive should be cached** under `cache.default_cache_dir()`,
+  keyed so a re-run with the same inputs is free (see the caching table in
+  ARCHITECTURE.md). Respect the `force_refresh` flag.
+- **Never hardcode API keys.** Read from env / `.env` / the in-app field.
+
+## LLM / model notes
+
+- Default model is `claude-opus-4-8`; structured output uses
+  `output_config.format` (Anthropic) or JSON-object mode + schema-in-prompt
+  (OpenAI/LiteLLM).
+- The `effort` parameter is only sent to models that support it (e.g. **not**
+  Haiku 4.5 — it 400s). See `_EFFORT_MODELS` in `llm.py`.
+- OpenAI/LiteLLM calls fall back gracefully (drop `response_format`, then
+  `temperature`) for models/endpoints that reject them.
+
+## Git workflow
+
+- **Do not commit to `main` directly.** Create a feature branch per change and
+  open a PR into `main`.
+- Commit identity: `user.email = noreply@anthropic.com`, `user.name = Claude`.
+- `.env`, `.venv`, `__pycache__`, `~/.cache/...` and build artefacts are
+  gitignored — never commit them.
