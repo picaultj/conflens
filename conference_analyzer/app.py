@@ -388,7 +388,24 @@ class AnalyzerUI:
                             ).style(f"background:{color};")
                     with ui.column().classes("w-full").style("padding:4px 18px 14px 18px; gap:10px;"):
                         if t.description:
-                            ui.label(t.description).classes("ca-muted").style("font-size:.85rem;")
+                            ui.label(t.description).style(
+                                f"color:{INK}; font-size:.9rem; line-height:1.5;"
+                            )
+                        if t.findings:
+                            with ui.column().classes("w-full").style(
+                                f"gap:4px; background:#f8fafc; border:1px solid {LINE}; "
+                                "border-radius:8px; padding:12px 16px;"
+                            ):
+                                ui.label("Main findings across this topic").style(
+                                    f"font-weight:700; color:{PRIMARY}; font-size:.8rem; "
+                                    "text-transform:uppercase; letter-spacing:.04em;"
+                                )
+                                ui.markdown(
+                                    "\n".join(f"- {f}" for f in t.findings)
+                                ).style(f"color:{INK}; font-size:.85rem;")
+                        ui.label(f"Papers ({t.count})").classes("ca-muted").style(
+                            "font-size:.8rem; font-weight:600; margin-top:4px;"
+                        )
                         papers = [by_id[pid] for pid in t.paper_ids if pid in by_id]
                         papers.sort(key=lambda p: p.confidence or 0, reverse=True)
                         for p in papers:

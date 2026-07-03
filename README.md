@@ -115,11 +115,15 @@ set — handy for a self-hosted endpoint.
 ## Features
 
 - Per-topic bar chart of paper counts.
+- For each topic, an LLM-generated **description** and **5–10 common findings**
+  (synthesised across the topic's papers, not paper-specific), shown above the
+  paper list.
 - Expandable abstracts and a per-paper relevance rationale.
 - One-click **PDF** links to every paper's full text.
 - Export results as a **PPTX** slide deck, **JSON**, or **CSV**.
   The deck (built with `python-pptx`) has a title slide, a papers-per-topic
-  chart, and one slide per topic listing its papers with clickable PDF links.
+  chart, and per topic an overview slide (description + common findings) plus
+  slides listing its papers with clickable PDF links.
 - On-disk caching of scraped data so re-runs are fast (see below).
 
 ## Caching
@@ -132,6 +136,8 @@ Everything expensive is cached on disk under `~/.cache/conference_analyzer`:
   by each paper's title+abstract hash. The raw model judgement is stored, so the
   **minimum-confidence** threshold is applied at read time — adjusting it never
   triggers a re-call.
+- **topic summaries** (description + common findings) are cached per
+  *(provider + model, theme)* and keyed by the topic's exact paper membership.
 
 So re-running with a **different theme** reuses the cached scrape (only
 classification re-runs), and **re-running the same theme + model is essentially

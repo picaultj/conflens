@@ -11,6 +11,9 @@ Two backends:
 
 from __future__ import annotations
 
+import hashlib
+import json
+import os
 from typing import Callable, Optional
 
 from .llm import LLMClient
@@ -209,3 +212,132 @@ def model_topics(
         return model_topics_bertopic(theme, papers, n_topics)
     assert client is not None
     return model_topics_llm(client, theme, papers, n_topics, progress)
+
+
+# ---------------------------------------------------------------------------
+# Per-topic synthesis: description + common findings
+# ---------------------------------------------------------------------------
+_SUMMARY_MAX_PAPERS = 30      # cap papers per prompt to bound tokens
+_SUMMARY_ABSTRACT_CHARS = 600
+
+_SUMMARY_SYSTEM = (
+    "You are a research analyst synthesising a cluster of related papers. Write a "
+    "short description of what the cluster is collectively about, then extract the "
+    "MAIN FINDINGS that are COMMON across the papers — shared methods, recurring "
+    "results, consensus positions, common problems or approaches. Focus on what "
+    "recurs across multiple papers, NOT points specific to a single paper. Each "
+    "finding must be a single, self-contained sentence."
+)
+
+_SUMMARY_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "description": {"type": "string"},
+        "findings": {"type": "array", "items": {"type": "string"}},
+    },
+    "required": ["description", "findings"],
+    "additionalProperties": False,
+}
+
+
+def _summary_prompt(theme: str, topic: Topic, papers: list[Paper]) -> str:
+    lines = [
+        f'Theme: "{theme}"',
+        f'Topic: "{topic.name}"',
+        "",
+        "Based on the papers below, return:",
+        "1. `description`: 1–2 sentences on what this group of papers is collectively about.",
+        "2. `findings`: 5 to 10 bullet points capturing the MAIN findings COMMON across "
+        "these papers (shared methods, recurring results, consensus, common "
+        "challenges). Prefer cross-cutting themes over any single paper's specifics.",
+        "",
+        "Papers:",
+    ]
+    for p in papers:
+        abstract = (p.abstract or "").strip()
+        if len(abstract) > _SUMMARY_ABSTRACT_CHARS:
+            abstract = abstract[:_SUMMARY_ABSTRACT_CHARS] + "…"
+        lines.append(f"- {p.title}. {abstract}".rstrip())
+    if len(topic.paper_ids) > _SUMMARY_MAX_PAPERS:
+        lines.append(
+            f"\n(Showing {_SUMMARY_MAX_PAPERS} of {len(topic.paper_ids)} papers; "
+            "synthesise the common themes.)"
+        )
+    return "\n".join(lines)
+
+
+def _topic_signature(topic: Topic) -> str:
+    raw = topic.name + "|" + "|".join(sorted(topic.paper_ids))
+    return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:16]
+
+
+def _summary_cache_path(cache_dir: str, cache_sig: str, theme: str) -> str:
+    digest = hashlib.sha1(f"{cache_sig}|{theme}|topicsum".encode("utf-8")).hexdigest()[:16]
+    return os.path.join(cache_dir, f"topicsum_{digest}.json")
+
+
+def summarize_topics(
+    client: LLMClient,
+    theme: str,
+    topics: list[Topic],
+    papers: list[Paper],
+    progress: Optional[Callable[[int, int], None]] = None,
+    cache_dir: Optional[str] = None,
+    cache_sig: str = "",
+    force_refresh: bool = False,
+) -> None:
+    """Fill each topic's ``description`` and ``findings`` in place.
+
+    Cached on disk keyed by provider+model, theme, and the topic's exact paper
+    membership — so re-running the same analysis reuses summaries, while a topic
+    whose papers changed is re-summarised.
+    """
+    by_id = {p.paper_id: p for p in papers}
+
+    cache: dict[str, dict] = {}
+    cache_path = None
+    if cache_dir:
+        os.makedirs(cache_dir, exist_ok=True)
+        cache_path = _summary_cache_path(cache_dir, cache_sig, theme)
+        if not force_refresh and os.path.exists(cache_path):
+            try:
+                with open(cache_path, "r", encoding="utf-8") as fh:
+                    cache = json.load(fh)
+            except (OSError, json.JSONDecodeError):
+                cache = {}
+
+    total = len(topics)
+    if progress:
+        progress(0, total)
+
+    for i, topic in enumerate(topics):
+        sig = _topic_signature(topic)
+        hit = cache.get(sig) if not force_refresh else None
+        if hit:
+            topic.description = hit.get("description", topic.description)
+            topic.findings = list(hit.get("findings", []))
+        else:
+            batch = [by_id[pid] for pid in topic.paper_ids if pid in by_id]
+            batch = batch[:_SUMMARY_MAX_PAPERS]
+            try:
+                data = client.structured(
+                    _SUMMARY_SYSTEM,
+                    _summary_prompt(theme, topic, batch),
+                    _SUMMARY_SCHEMA,
+                    max_tokens=1500,
+                    effort="medium",
+                )
+                topic.description = data.get("description", topic.description) or topic.description
+                topic.findings = [str(f) for f in data.get("findings", [])][:10]
+                cache[sig] = {"description": topic.description, "findings": topic.findings}
+                if cache_path:
+                    try:
+                        with open(cache_path, "w", encoding="utf-8") as fh:
+                            json.dump(cache, fh)
+                    except OSError:
+                        pass
+            except Exception:
+                # A failed summary shouldn't sink the whole run; keep the topic as-is.
+                pass
+        if progress:
+            progress(i + 1, total)
