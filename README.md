@@ -83,16 +83,41 @@ set — handy for a self-hosted endpoint.
 > The app handles this gracefully and tells you so — try a past event such as
 > `acl-2024` to see a full run.
 
+## Architecture
+
+A NiceGUI front end drives a linear pipeline — **browse → classify →
+topic-model → summarize** — over a pluggable *source* (which conference) and a
+pluggable *LLM provider* (which model), with every expensive step cached on disk.
+
+```mermaid
+flowchart LR
+    UI["NiceGUI UI<br/>app.py"] --> PIPE["pipeline.py"]
+    PIPE --> SRC["sources.py<br/>ACL · IJCAI"]
+    PIPE --> CLS["classifier.py"]
+    PIPE --> TOP["topics.py<br/>model + summarize"]
+    CLS --> LLM["llm.py<br/>Anthropic · OpenAI · LiteLLM"]
+    TOP --> LLM
+    PIPE --> RES["AnalysisResult"] --> EXP["PPTX · JSON · CSV"]
+    SRC -. cache .-> CACHE[("~/.cache/conference_analyzer")]
+    CLS -. cache .-> CACHE
+    TOP -. cache .-> CACHE
+```
+
+See **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** for component, sequence,
+data-model and caching diagrams, plus extension points.
+
 ## How it works
 
 | Stage | Module | Notes |
 |-------|--------|-------|
 | Sources | `conference_analyzer/sources.py` | Pluggable adapters (ACL Anthology, IJCAI) behind one interface; registry + factory. |
 | Scrape listing | `conference_analyzer/scraper.py` | ACL Anthology adapter: parses the event page; abstracts + authors fetched per paper and cached. |
-| Classify | `conference_analyzer/classifier.py` | Batched, structured-output calls; relevance + confidence + a one-line reason per paper. |
+| Classify | `conference_analyzer/classifier.py` | Batched, structured-output calls; relevance + confidence + a one-line reason per paper (cached). |
 | Topic model | `conference_analyzer/topics.py` | `llm` backend derives a taxonomy and assigns papers; `bertopic` backend optional. |
-| Orchestrate | `conference_analyzer/pipeline.py` | Runs the three stages with progress reporting. |
-| UI | `conference_analyzer/app.py` | NiceGUI; charts via ECharts; CSV/JSON export. |
+| Summarize | `conference_analyzer/topics.py` | Per-topic description + 5–10 common findings across the topic's papers (cached). |
+| LLM providers | `conference_analyzer/llm.py` | One `structured()` interface over Anthropic / OpenAI / LiteLLM. |
+| Orchestrate | `conference_analyzer/pipeline.py` | Runs the stages with progress reporting. |
+| UI / exports | `conference_analyzer/app.py`, `pptx_export.py` | NiceGUI; ECharts chart; PPTX / JSON / CSV export. |
 
 ## Configuration (in the UI)
 
