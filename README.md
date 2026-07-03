@@ -1,5 +1,15 @@
 # ConfLens: a Conference Paper Analyzer
 
+[![Downloads](https://img.shields.io/github/downloads/picaultj/conflens/total?logo=github&label=downloads)](https://github.com/picaultj/conflens/releases)
+[![Release](https://img.shields.io/github/v/release/picaultj/conflens?logo=github&label=release&sort=semver)](https://github.com/picaultj/conflens/releases)
+[![Stars](https://img.shields.io/github/stars/picaultj/conflens?logo=github&style=flat)](https://github.com/picaultj/conflens/stargazers)
+[![Last commit](https://img.shields.io/github/last-commit/picaultj/conflens?logo=github)](https://github.com/picaultj/conflens/commits/main)
+[![Issues](https://img.shields.io/github/issues/picaultj/conflens?logo=github)](https://github.com/picaultj/conflens/issues)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.13+](https://img.shields.io/badge/python-3.13%2B-blue.svg?logo=python&logoColor=white)](https://www.python.org/)
+[![uv](https://img.shields.io/badge/managed%20by-uv-DE5FE9.svg?logo=uv&logoColor=white)](https://docs.astral.sh/uv/)
+[![Built with NiceGUI](https://img.shields.io/badge/UI-NiceGUI-2b6cb0.svg)](https://nicegui.io)
+
 A desktop-style web app (built with [NiceGUI](https://nicegui.io)) that:
 
 1. **Browses** papers from a chosen **source** and retrieves their abstracts:
