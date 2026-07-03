@@ -155,6 +155,29 @@ def build_pptx(result: "AnalysisResult") -> bytes:
     for topic in result.topics:
         papers = [by_id[pid] for pid in topic.paper_ids if pid in by_id]
         papers.sort(key=lambda p: p.confidence or 0, reverse=True)
+
+        # 3a. topic overview slide: description + common findings
+        if topic.description or topic.findings:
+            s = add_slide()
+            fill_rect(s, 0, 0, SW, SH, _WHITE)
+            header_bar(
+                s,
+                topic.name,
+                f"{topic.count} paper{'s' if topic.count != 1 else ''}",
+            )
+            top = Inches(1.25)
+            if topic.description:
+                _, tf = textbox(s, Inches(0.5), top, SW - Inches(1.0), Inches(0.9))
+                style_run(tf.paragraphs[0].add_run(), topic.description, 14, _INK)
+                top = Inches(2.05)
+            if topic.findings:
+                _, tf = textbox(s, Inches(0.5), top, SW - Inches(1.0), SH - top - Inches(0.4))
+                head = tf.paragraphs[0]
+                style_run(head.add_run(), "Main findings across this topic", 12, _ACCENT, bold=True)
+                for finding in topic.findings[:10]:
+                    fp = tf.add_paragraph()
+                    fp.space_before = Pt(5)
+                    style_run(fp.add_run(), "•  " + finding, 13, _INK)
         chunks = [
             papers[i : i + _PAPERS_PER_SLIDE]
             for i in range(0, max(len(papers), 1), _PAPERS_PER_SLIDE)
@@ -165,15 +188,10 @@ def build_pptx(result: "AnalysisResult") -> bytes:
             suffix = "" if len(chunks) == 1 else f"  ({idx + 1}/{len(chunks)})"
             header_bar(
                 s,
-                f"{topic.name}{suffix}",
+                f"{topic.name} — Papers{suffix}",
                 f"{topic.count} paper{'s' if topic.count != 1 else ''}",
             )
             top = Inches(1.25)
-            if idx == 0 and topic.description:
-                _, tf = textbox(s, Inches(0.5), top, SW - Inches(1.0), Inches(0.6))
-                style_run(tf.paragraphs[0].add_run(), topic.description, 13, _MUTED, italic=True)
-                top = Inches(1.85)
-
             _, tf = textbox(s, Inches(0.5), top, SW - Inches(1.0), SH - top - Inches(0.3))
             first = True
             for paper in chunk:

@@ -114,6 +114,23 @@ def run_analysis(
     result.topics = topic_mod.model_topics(
         cfg.topic_backend, client, cfg.theme, relevant, n_topics=cfg.n_topics, progress=top_prog
     )
+
+    # 5. Per-topic synthesis (description + common findings) ------------
+    def sum_prog(done: int, total: int) -> None:
+        progress.set("summarize", f"Summarising topics ({done}/{total})", done / max(total, 1))
+
+    progress.set("summarize", "Summarising topics…", 0.0)
+    topic_mod.summarize_topics(
+        client,
+        cfg.theme,
+        result.topics,
+        relevant,
+        progress=sum_prog,
+        cache_dir=cache_dir,
+        cache_sig=f"{cfg.provider}:{cfg.model}",
+        force_refresh=cfg.refresh,
+    )
+
     progress.set("done", f"Done — {len(result.topics)} topics across {len(relevant)} papers.", 1.0)
     progress.done = True
     return result

@@ -36,6 +36,7 @@ class Topic:
     topic_id: int
     name: str
     description: str = ""
+    findings: list[str] = field(default_factory=list)  # common findings across the topic's papers
     paper_ids: list[str] = field(default_factory=list)
 
     @property
