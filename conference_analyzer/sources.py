@@ -10,9 +10,9 @@ Sources shipping today:
 
 * **aclanthology** — the ACL Anthology (:class:`~.scraper.AnthologyScraper`); a
   listing page plus per-paper abstract pages.
-* **emnlp** — EMNLP proceedings, which also live on the ACL Anthology; the same
-  adapter as ``aclanthology`` with an EMNLP event prefilled (any Anthology event
-  slug works for either).
+* **emnlp** / **naacl** — EMNLP and NAACL proceedings, which also live on the ACL
+  Anthology; the same adapter as ``aclanthology`` with the respective event
+  prefilled (any Anthology event slug works for any of these keys).
 * **ijcai** — IJCAI accepted-paper pages (e.g. ``2026.ijcai.org/accepted-papers``),
   where every paper's title, authors, abstract and keywords live on one page.
 * **openreview** — OpenReview venues (ICLR, NeurIPS, …) via the public JSON API;
@@ -446,6 +446,13 @@ SOURCES = {
         "base_label": "Anthology base URL",
         "target_label": "Event (slug or full URL)",
     },
+    "naacl": {
+        "label": "NAACL (ACL Anthology)",
+        "base": "https://aclanthology.org",
+        "target": "naacl-2024",
+        "base_label": "Anthology base URL",
+        "target_label": "Event (slug or full URL)",
+    },
     "ijcai": {
         "label": "IJCAI",
         "base": "https://2026.ijcai.org",
@@ -465,9 +472,9 @@ SOURCES = {
 
 def make_source(source: str, base_url: str, cache_dir: Optional[str] = None):
     """Return a source adapter for ``source`` (raises on unknown keys)."""
-    if source in ("aclanthology", "emnlp"):
-        # EMNLP proceedings live on the ACL Anthology; same adapter, different
-        # default event. Any Anthology event slug works for either key.
+    if source in ("aclanthology", "emnlp", "naacl"):
+        # EMNLP and NAACL proceedings live on the ACL Anthology; same adapter,
+        # different default event. Any Anthology event slug works for any key.
         return AnthologyScraper(base_url=base_url, cache_dir=cache_dir)
     if source == "ijcai":
         return IJCAISource(base_url=base_url, cache_dir=cache_dir)
