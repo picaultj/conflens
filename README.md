@@ -165,9 +165,19 @@ data-model and caching diagrams, plus extension points.
   preprint and its camera-ready) are clustered with a dependency-free fuzzy match
   and flagged with a *near-dup* badge naming the representative; the count of
   groups appears in the summary and a `duplicate_of` column is added to the CSV.
-- A **keyword search** that filters the papers listed under each topic by their
-  title or abstract — comma-separated keywords (each may contain spaces), matched
-  with AND; topics with no match are hidden and matching ones auto-expand.
+- A **keyword search** that filters the papers by their title or abstract —
+  comma-separated keywords (each may contain spaces), matched with AND. Matched
+  keywords are **highlighted** in the title and abstract, topics with no match
+  are hidden, and a **"Search all topics"** toggle flattens every match into one
+  ranked list (a multi-topic paper appears once, tagged with its topics).
+- A **live confidence slider** in the results view: because the raw model
+  judgement is cached, re-thresholding re-filters the papers, counts, and chart
+  instantly — no re-run.
+- **Sort** papers by confidence, title, or year, and **filter by author** —
+  all applied live on top of the search and confidence filters.
+- **Save / load a run** — the JSON export is a complete snapshot; use *"Load
+  saved run"* to reopen it later and browse, search, and re-threshold without
+  re-analysing.
 - Expandable abstracts and a per-paper relevance rationale.
 - One-click **PDF** links to every paper's full text.
 - A **Cancel** button and elapsed-time readout for long runs; LLM calls

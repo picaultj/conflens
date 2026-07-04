@@ -65,7 +65,9 @@ def run_analysis(
     """Execute the full pipeline. Designed to run in a worker thread."""
     scraper = make_source(cfg.source, base_url=cfg.base_url, cache_dir=cache_dir)
     event_url = scraper.resolve_url(cfg.event)
-    result = AnalysisResult(theme=cfg.theme, event_url=event_url)
+    result = AnalysisResult(
+        theme=cfg.theme, event_url=event_url, min_confidence=cfg.min_confidence
+    )
 
     try:
         # 1. List papers ------------------------------------------------
@@ -108,11 +110,14 @@ def run_analysis(
                 "classify", f"Classifying for '{cfg.theme}' ({done}/{total})", done / max(total, 1)
             )
 
+        # Keep every paper the model judges relevant (threshold 0) so the UI can
+        # re-apply the confidence cut-off live without a re-run. The run's
+        # ``min_confidence`` is carried on the result as the default display cut.
         relevant = classifier.classify_papers(
             client,
             cfg.theme,
             papers,
-            min_confidence=cfg.min_confidence,
+            min_confidence=0.0,
             progress=cls_prog,
             cache_dir=cache_dir,
             cache_sig=f"{cfg.provider}:{cfg.model}",
@@ -121,7 +126,13 @@ def run_analysis(
             theme_definition=cfg.theme_definition,
         )
         result.relevant_papers = relevant
-        progress.set("classify", f"{len(relevant)} of {len(papers)} papers match the theme.", 1.0)
+        at_threshold = sum(1 for p in relevant if (p.confidence or 0) >= cfg.min_confidence)
+        progress.set(
+            "classify",
+            f"{at_threshold} of {len(papers)} papers match the theme "
+            f"(≥{cfg.min_confidence:.2f} confidence).",
+            1.0,
+        )
 
         if not relevant:
             progress.set("topics", "No matching papers — nothing to model.", 1.0)

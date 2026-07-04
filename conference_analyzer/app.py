@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import asyncio
 import csv
+import html
 import io
 import json
 import os
+import re
 import time
 from typing import Optional
 
@@ -49,9 +51,16 @@ class AnalyzerUI:
         self.elapsed_label: Optional[ui.label] = None
         self._t0: float = 0.0
         self.results_container: Optional[ui.column] = None
+        self.chart_container: Optional[ui.column] = None
         self.topics_container: Optional[ui.column] = None
-        self.search: Optional[ui.input] = None
         self.filter_status: Optional[ui.label] = None
+        # results-view controls (populated when results are rendered)
+        self.search: Optional[ui.input] = None
+        self.global_toggle: Optional[ui.switch] = None
+        self.sort_select: Optional[ui.select] = None
+        self.author_select: Optional[ui.select] = None
+        self.conf_view: Optional[ui.slider] = None
+        self.conf_view_label: Optional[ui.label] = None
 
     # ------------------------------------------------------------------ #
     # Layout
@@ -68,6 +77,7 @@ class AnalyzerUI:
             "font-size:.72rem;font-weight:600;text-decoration:none;}"
             "a.ca-title{color:%s;font-weight:600;text-decoration:none;}"
             "a.ca-title:hover{text-decoration:underline;}"
+            "mark{background:#fde68a;color:inherit;padding:0 1px;border-radius:2px;}"
             "</style>" % (LINE, MUTED, ACCENT, INK)
         )
 
@@ -172,9 +182,41 @@ class AnalyzerUI:
                     "disk and reused across runs (re-running the same theme + model is "
                     "instant). Tick this to refetch and re-classify from scratch."
                 )
-                self.run_btn = ui.button("Analyze", icon="play_arrow", on_click=self.start).props(
-                    "unelevated"
-                )
+                with ui.row().classes("items-center").style("gap:10px;"):
+                    self.load_upload = (
+                        ui.upload(on_upload=self._load_run, auto_upload=True)
+                        .props('accept=.json flat dense label="Load saved run (.json)"')
+                        .classes("max-w-[220px]")
+                    )
+                    self.load_upload.tooltip(
+                        "Reload a run you saved earlier with the JSON export — no re-analysis."
+                    )
+                    self.run_btn = ui.button(
+                        "Analyze", icon="play_arrow", on_click=self.start
+                    ).props("unelevated")
+
+    def _load_run(self, e) -> None:
+        """Restore a previously saved run (JSON export) and render it — no re-run."""
+        try:
+            raw = e.content.read()
+            data = json.loads(raw.decode("utf-8"))
+            result = AnalysisResult.from_dict(data)
+        except Exception as ex:  # malformed / wrong file
+            ui.notify(f"Could not load run: {ex}", type="negative", multi_line=True)
+            return
+        finally:
+            self.load_upload.reset()
+        if not result.relevant_papers and not result.topics:
+            ui.notify("That file doesn't look like a saved analysis run.", type="warning")
+            return
+        self.result = result
+        if self.progress_card:
+            self.progress_card.style("display:none;")
+        ui.notify(
+            f"Loaded run: “{result.theme}” · {len(result.relevant_papers)} papers.",
+            type="positive",
+        )
+        self._render_results(result)
 
     def _on_source_change(self, source: str) -> None:
         """Prefill the base URL / target and relabel them for the chosen source."""
@@ -347,10 +389,10 @@ class AnalyzerUI:
                 return
 
             self._render_summary(result)
-            self._render_chart(result)
-            self._render_filter_bar()
+            self.chart_container = ui.column().classes("w-full").style("gap:0;")
+            self._render_controls(result)
             self.topics_container = ui.column().style("width:100%; gap:18px;")
-        self._render_topics(result, "")
+        self._apply_view()
 
     def _render_summary(self, result: AnalysisResult) -> None:
         with ui.card().classes("w-full ca-card").style("padding:18px 22px;"):
@@ -359,7 +401,7 @@ class AnalyzerUI:
             ):
                 with ui.row().style("gap:36px; flex-wrap:wrap;"):
                     self._stat(str(result.scanned), "Papers scanned")
-                    self._stat(str(len(result.relevant_papers)), f"Match “{result.theme}”")
+                    self._stat(str(len(result.relevant_papers)), f"Relevant to “{result.theme}”")
                     self._stat(str(len(result.topics)), "Topics")
                     if result.duplicate_groups:
                         self._stat(str(result.duplicate_groups), "Near-duplicate groups")
@@ -369,7 +411,7 @@ class AnalyzerUI:
                     ).props("unelevated dense")
                     ui.button("JSON", icon="download", on_click=self._download_json).props(
                         "outline dense"
-                    )
+                    ).tooltip("Save this run — reload it later with “Load saved run”.")
                     ui.button("CSV", icon="download", on_click=self._download_csv).props(
                         "outline dense"
                     )
@@ -385,10 +427,7 @@ class AnalyzerUI:
             ui.label(value).style(f"font-size:1.8rem; font-weight:700; color:{PRIMARY};")
             ui.label(label).classes("ca-muted").style("font-size:.8rem;")
 
-    def _render_chart(self, result: AnalysisResult) -> None:
-        topics = result.topics
-        names = [t.name for t in topics]
-        counts = [t.count for t in topics]
+    def _render_chart(self, names: list[str], counts: list[int]) -> None:
         with ui.card().classes("w-full ca-card").style("padding:18px 22px;"):
             ui.label("Papers per topic").style(f"font-weight:700; color:{INK};")
             ui.echart(
@@ -413,136 +452,277 @@ class AnalyzerUI:
                         }
                     ],
                 }
-            ).style(f"height:{max(160, 46 * len(topics))}px; width:100%;")
+            ).style(f"height:{max(160, 46 * len(names))}px; width:100%;")
 
-    def _render_filter_bar(self) -> None:
+    # ------------------------------------------------------------------ #
+    # Results-view controls (all filter/sort live, client-side)
+    # ------------------------------------------------------------------ #
+    def _render_controls(self, result: AnalysisResult) -> None:
+        authors = sorted(
+            {a for p in result.relevant_papers for a in p.authors if a},
+            key=str.casefold,
+        )
         with ui.card().classes("w-full ca-card").style("padding:12px 18px;"):
             with ui.row().classes("w-full items-center").style("gap:12px; flex-wrap:wrap;"):
                 ui.icon("search").style(f"color:{MUTED};")
                 self.search = (
                     ui.input(
-                        placeholder="Filter papers by keywords in the title or abstract "
+                        placeholder="Filter by keywords in the title or abstract "
                         "(comma-separated; each keyword may contain spaces)"
                     )
                     .props("dense clearable")
-                    .style("flex:1 1 320px;")
+                    .style("flex:1 1 300px;")
                 )
-                self.search.on_value_change(lambda e: self._apply_filter(e.value or ""))
+                self.search.on_value_change(lambda _: self._apply_view())
+                self.global_toggle = ui.switch("Search all topics").props("dense")
+                self.global_toggle.tooltip(
+                    "Show every matching paper in one ranked list instead of grouping by topic."
+                )
+                self.global_toggle.on_value_change(lambda _: self._apply_view())
+            with ui.row().classes("w-full items-center").style(
+                "gap:16px; flex-wrap:wrap; margin-top:8px;"
+            ):
+                self.sort_select = (
+                    ui.select(
+                        {"confidence": "Confidence", "title": "Title", "year": "Year"},
+                        value="confidence",
+                        label="Sort by",
+                    )
+                    .props("dense outlined")
+                    .style("flex:1 1 150px; max-width:200px;")
+                )
+                self.sort_select.on_value_change(lambda _: self._apply_view())
+                self.author_select = (
+                    ui.select(
+                        authors,
+                        value=None,
+                        label="Filter by author",
+                        with_input=True,
+                        clearable=True,
+                    )
+                    .props("dense outlined")
+                    .style("flex:1 1 220px; max-width:320px;")
+                )
+                self.author_select.on_value_change(lambda _: self._apply_view())
+                with ui.column().classes("gap-0").style("flex:1 1 220px; min-width:200px;"):
+                    self.conf_view_label = ui.label("").classes("ca-muted").style(
+                        "font-size:.8rem;"
+                    )
+                    self.conf_view = ui.slider(
+                        min=0, max=1, step=0.05, value=result.min_confidence
+                    ).props("label-always")
+                    self.conf_view.on_value_change(lambda _: self._apply_view())
                 self.filter_status = ui.label("").classes("ca-muted").style(
                     "font-size:.8rem; white-space:nowrap;"
                 )
 
     @staticmethod
-    def _paper_matches(paper, query: str) -> bool:
-        q = query.strip().lower()
-        if not q:
-            return True
-        # Split on commas so each keyword may itself contain spaces; a paper
-        # matches only if its title or abstract contains every keyword (AND).
-        keywords = [k.strip() for k in q.split(",") if k.strip()]
+    def _keywords(query: str) -> list[str]:
+        # Split on commas so each keyword may itself contain spaces.
+        return [k.strip().lower() for k in (query or "").split(",") if k.strip()]
+
+    @staticmethod
+    def _matches(paper, keywords: list[str]) -> bool:
         if not keywords:
             return True
         text = f"{paper.title}\n{paper.abstract or ''}".lower()
-        return all(k in text for k in keywords)
+        return all(k in text for k in keywords)  # AND across keywords
 
-    def _apply_filter(self, query: str) -> None:
-        if self.result:
-            self._render_topics(self.result, query)
+    @staticmethod
+    def _highlight(text: str, keywords: list[str]) -> str:
+        esc = html.escape(text or "")
+        if not keywords:
+            return esc
+        pattern = re.compile("|".join(re.escape(k) for k in keywords), re.IGNORECASE)
+        return pattern.sub(lambda m: f"<mark>{m.group(0)}</mark>", esc)
 
-    def _render_topics(self, result: AnalysisResult, query: str = "") -> None:
-        if self.topics_container is None:
+    def _sorted(self, papers: list, sort: str) -> list:
+        if sort == "title":
+            return sorted(papers, key=lambda p: (p.title or "").casefold())
+        if sort == "year":
+            return sorted(papers, key=lambda p: (p.year or 0), reverse=True)
+        return sorted(papers, key=lambda p: (p.confidence or 0), reverse=True)
+
+    def _apply_view(self) -> None:
+        """Recompute the filtered/sorted view and re-render chart + papers live."""
+        result = self.result
+        if result is None or self.topics_container is None:
             return
-        self.topics_container.clear()
+        query = self.search.value if self.search else ""
+        keywords = self._keywords(query)
+        min_conf = float(self.conf_view.value) if self.conf_view else 0.0
+        author = (self.author_select.value or "") if self.author_select else ""
+        sort = (self.sort_select.value or "confidence") if self.sort_select else "confidence"
+        is_global = bool(self.global_toggle.value) if self.global_toggle else False
+
         by_id = {p.paper_id: p for p in result.relevant_papers}
         all_by_id = {p.paper_id: p for p in result.papers}  # for duplicate-rep titles
         topic_name = {t.topic_id: t.name for t in result.topics}
-        filtering = bool(query.strip())
+
+        def passes(p) -> bool:
+            if (p.confidence or 0) < min_conf:
+                return False
+            if author and author not in p.authors:
+                return False
+            return self._matches(p, keywords)
+
+        # Per-topic filtered papers (drives both the chart and the grouped view).
+        per_topic = {
+            t.topic_id: self._sorted(
+                [by_id[pid] for pid in t.paper_ids if pid in by_id and passes(by_id[pid])],
+                sort,
+            )
+            for t in result.topics
+        }
+        counts = [len(per_topic[t.topic_id]) for t in result.topics]
+
+        # Chart reflects the live view.
+        if self.chart_container is not None:
+            self.chart_container.clear()
+            with self.chart_container:
+                self._render_chart([t.name for t in result.topics], counts)
+
         shown_papers = 0
         shown_topics = 0
-
+        self.topics_container.clear()
         with self.topics_container:
-            for t in result.topics:
-                papers = [by_id[pid] for pid in t.paper_ids if pid in by_id]
-                if filtering:
-                    papers = [p for p in papers if self._paper_matches(p, query)]
-                    if not papers:
-                        continue  # hide topics with no matches while filtering
-                papers.sort(key=lambda p: p.confidence or 0, reverse=True)
-                shown_papers += len(papers)
-                shown_topics += 1
-                color = TOPIC_COLORS[t.topic_id % len(TOPIC_COLORS)]
-                badge = f"{len(papers)} of {t.count}" if filtering else (
-                    f"{t.count} paper{'s' if t.count != 1 else ''}"
-                )
-                with ui.card().classes("w-full ca-card").style("padding:0; overflow:hidden;"):
-                    with ui.expansion().classes("w-full").props(
-                        "default-opened" if filtering else ""
-                    ) as exp:
-                        with exp.add_slot("header"):
-                            with ui.row().classes("w-full items-center").style("gap:12px;"):
-                                ui.element("div").style(
-                                    f"width:10px; height:10px; border-radius:50%; background:{color};"
-                                )
-                                ui.label(t.name).style(f"font-weight:700; color:{INK};")
-                                ui.label(badge).classes("ca-badge").style(f"background:{color};")
-                        with ui.column().classes("w-full").style(
-                            "padding:4px 18px 14px 18px; gap:10px;"
-                        ):
-                            if t.description:
-                                ui.label(t.description).style(
-                                    f"color:{INK}; font-size:.9rem; line-height:1.5;"
-                                )
-                            if t.findings:
-                                with ui.column().classes("w-full").style(
-                                    f"gap:4px; background:#f8fafc; border:1px solid {LINE}; "
-                                    "border-radius:8px; padding:12px 16px;"
-                                ):
-                                    ui.label("Main findings across this topic").style(
-                                        f"font-weight:700; color:{PRIMARY}; font-size:.8rem; "
-                                        "text-transform:uppercase; letter-spacing:.04em;"
-                                    )
-                                    ui.markdown(
-                                        "\n".join(f"- {f}" for f in t.findings)
-                                    ).style(f"color:{INK}; font-size:.85rem;")
-                            label = (
-                                f"Papers ({len(papers)} of {t.count} match)"
-                                if filtering
-                                else f"Papers ({t.count})"
-                            )
-                            ui.label(label).classes("ca-muted").style(
-                                "font-size:.8rem; font-weight:600; margin-top:4px;"
-                            )
-                            for p in papers:
-                                also_in = [
-                                    topic_name[tid]
-                                    for tid in p.topic_ids
-                                    if tid != t.topic_id and tid in topic_name
-                                ]
-                                dup_title = None
-                                if p.duplicate_of and p.duplicate_of in all_by_id:
-                                    dup_title = all_by_id[p.duplicate_of].title
-                                self._render_paper(p, also_in=also_in, dup_title=dup_title)
-
-            if filtering and shown_topics == 0:
-                ui.label("No papers match those keywords in their abstract.").classes(
-                    "ca-muted"
-                ).style("padding:8px 2px;")
-
-        if self.filter_status is not None:
-            if filtering:
-                self.filter_status.set_text(
-                    f"{shown_papers} of {len(result.relevant_papers)} papers · "
-                    f"{shown_topics} of {len(result.topics)} topics"
+            if is_global:
+                shown_papers, shown_topics = self._render_global(
+                    result, per_topic, topic_name, all_by_id, keywords, sort
                 )
             else:
-                self.filter_status.set_text("")
+                shown_papers, shown_topics = self._render_grouped(
+                    result, per_topic, topic_name, all_by_id, keywords
+                )
 
-    def _render_paper(self, p, also_in=None, dup_title=None) -> None:
+        self._update_status(result, shown_papers, shown_topics, min_conf, is_global)
+
+    def _update_status(self, result, shown_papers, shown_topics, min_conf, is_global) -> None:
+        if self.conf_view_label is not None:
+            self.conf_view_label.set_text(f"Show ≥ {min_conf:.2f} confidence")
+        if self.filter_status is not None:
+            scope = "in one list" if is_global else f"· {shown_topics} of {len(result.topics)} topics"
+            self.filter_status.set_text(
+                f"{shown_papers} of {len(result.relevant_papers)} papers {scope}"
+            )
+
+    def _render_grouped(self, result, per_topic, topic_name, all_by_id, keywords) -> tuple:
+        active = bool(keywords)  # auto-open + hide-empty only when keyword filtering
+        shown_papers = 0
+        shown_topics = 0
+        for t in result.topics:
+            papers = per_topic[t.topic_id]
+            if not papers:
+                continue
+            shown_papers += len(papers)
+            shown_topics += 1
+            color = TOPIC_COLORS[t.topic_id % len(TOPIC_COLORS)]
+            badge = (
+                f"{len(papers)} of {t.count}"
+                if len(papers) != t.count
+                else f"{t.count} paper{'s' if t.count != 1 else ''}"
+            )
+            with ui.card().classes("w-full ca-card").style("padding:0; overflow:hidden;"):
+                with ui.expansion().classes("w-full").props(
+                    "default-opened" if active else ""
+                ) as exp:
+                    with exp.add_slot("header"):
+                        with ui.row().classes("w-full items-center").style("gap:12px;"):
+                            ui.element("div").style(
+                                f"width:10px; height:10px; border-radius:50%; background:{color};"
+                            )
+                            ui.label(t.name).style(f"font-weight:700; color:{INK};")
+                            ui.label(badge).classes("ca-badge").style(f"background:{color};")
+                    with ui.column().classes("w-full").style(
+                        "padding:4px 18px 14px 18px; gap:10px;"
+                    ):
+                        if t.description:
+                            ui.label(t.description).style(
+                                f"color:{INK}; font-size:.9rem; line-height:1.5;"
+                            )
+                        if t.findings:
+                            with ui.column().classes("w-full").style(
+                                f"gap:4px; background:#f8fafc; border:1px solid {LINE}; "
+                                "border-radius:8px; padding:12px 16px;"
+                            ):
+                                ui.label("Main findings across this topic").style(
+                                    f"font-weight:700; color:{PRIMARY}; font-size:.8rem; "
+                                    "text-transform:uppercase; letter-spacing:.04em;"
+                                )
+                                ui.markdown(
+                                    "\n".join(f"- {f}" for f in t.findings)
+                                ).style(f"color:{INK}; font-size:.85rem;")
+                        ui.label(f"Papers ({len(papers)})").classes("ca-muted").style(
+                            "font-size:.8rem; font-weight:600; margin-top:4px;"
+                        )
+                        for p in papers:
+                            self._render_paper(
+                                p, keywords,
+                                also_in=self._also_in(p, t.topic_id, topic_name),
+                                dup_title=self._dup_title(p, all_by_id),
+                            )
+        if shown_topics == 0:
+            ui.label("No papers match the current filters.").classes("ca-muted").style(
+                "padding:8px 2px;"
+            )
+        return shown_papers, shown_topics
+
+    def _render_global(self, result, per_topic, topic_name, all_by_id, keywords, sort) -> tuple:
+        # Flatten unique papers across topics (a multi-topic paper appears once).
+        seen: dict = {}
+        for t in result.topics:
+            for p in per_topic[t.topic_id]:
+                seen.setdefault(p.paper_id, p)
+        papers = self._sorted(list(seen.values()), sort)
+        with ui.card().classes("w-full ca-card").style("padding:6px 18px 14px 18px;"):
+            ui.label(f"All matching papers ({len(papers)})").classes("ca-muted").style(
+                "font-size:.8rem; font-weight:600; margin-top:8px;"
+            )
+            if not papers:
+                ui.label("No papers match the current filters.").classes("ca-muted").style(
+                    "padding:8px 2px;"
+                )
+            for p in papers:
+                self._render_paper(
+                    p, keywords,
+                    also_in=[topic_name[tid] for tid in p.topic_ids if tid in topic_name],
+                    dup_title=self._dup_title(p, all_by_id),
+                    also_label="Topics: ",
+                )
+        return len(papers), 1 if papers else 0
+
+    @staticmethod
+    def _also_in(p, current_topic_id, topic_name) -> list:
+        return [
+            topic_name[tid]
+            for tid in p.topic_ids
+            if tid != current_topic_id and tid in topic_name
+        ]
+
+    @staticmethod
+    def _dup_title(p, all_by_id) -> Optional[str]:
+        if p.duplicate_of and p.duplicate_of in all_by_id:
+            return all_by_id[p.duplicate_of].title
+        return None
+
+    def _render_paper(
+        self, p, keywords=None, also_in=None, dup_title=None, also_label="Also in: "
+    ) -> None:
+        keywords = keywords or []
         with ui.column().classes("w-full").style(
             f"gap:3px; padding:10px 0; border-top:1px solid {LINE};"
         ):
             with ui.row().classes("w-full items-start justify-between").style("gap:10px;"):
-                if p.url:
+                if keywords:
+                    title_html = self._highlight(p.title, keywords)
+                    if p.url:
+                        ui.html(
+                            f'<a href="{html.escape(p.url)}" target="_blank" '
+                            f'rel="noopener" class="ca-title">{title_html}</a>'
+                        )
+                    else:
+                        ui.html(f'<span style="color:{INK};font-weight:600;">{title_html}</span>')
+                elif p.url:
                     ui.link(p.title, p.url, new_tab=True).classes("ca-title")
                 else:
                     ui.label(p.title).style(f"color:{INK}; font-weight:600;")
@@ -561,12 +741,19 @@ class AnalyzerUI:
                 authors = ", ".join(p.authors[:6]) + ("…" if len(p.authors) > 6 else "")
                 ui.label(authors).classes("ca-muted").style("font-size:.8rem;")
             if also_in:
-                ui.label("Also in: " + ", ".join(also_in)).classes("ca-muted").style(
+                ui.label(also_label + ", ".join(also_in)).classes("ca-muted").style(
                     "font-size:.78rem;"
                 )
             if p.abstract:
                 with ui.expansion("Abstract").classes("w-full").style("font-size:.85rem;"):
-                    ui.label(p.abstract).style(f"color:{INK}; font-size:.85rem; line-height:1.5;")
+                    if keywords:
+                        ui.html(self._highlight(p.abstract, keywords)).style(
+                            f"color:{INK}; font-size:.85rem; line-height:1.5;"
+                        )
+                    else:
+                        ui.label(p.abstract).style(
+                            f"color:{INK}; font-size:.85rem; line-height:1.5;"
+                        )
             if p.reason:
                 ui.label("Why: " + p.reason).classes("ca-muted").style(
                     "font-size:.78rem; font-style:italic;"
