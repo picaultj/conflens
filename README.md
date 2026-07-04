@@ -154,8 +154,8 @@ data-model and caching diagrams, plus extension points.
   (synthesised across the topic's papers, not paper-specific), shown above the
   paper list.
 - A **keyword search** that filters the papers listed under each topic by their
-  abstract — comma-separated keywords (each may contain spaces), matched with AND;
-  topics with no match are hidden and matching ones auto-expand.
+  title or abstract — comma-separated keywords (each may contain spaces), matched
+  with AND; topics with no match are hidden and matching ones auto-expand.
 - Expandable abstracts and a per-paper relevance rationale.
 - One-click **PDF** links to every paper's full text.
 - Export results as a **PPTX** slide deck, **JSON**, or **CSV**.

@@ -382,7 +382,7 @@ class AnalyzerUI:
                 ui.icon("search").style(f"color:{MUTED};")
                 self.search = (
                     ui.input(
-                        placeholder="Filter papers by keywords in the abstract "
+                        placeholder="Filter papers by keywords in the title or abstract "
                         "(comma-separated; each keyword may contain spaces)"
                     )
                     .props("dense clearable")
@@ -399,11 +399,11 @@ class AnalyzerUI:
         if not q:
             return True
         # Split on commas so each keyword may itself contain spaces; a paper
-        # matches only if its abstract contains every keyword (AND).
+        # matches only if its title or abstract contains every keyword (AND).
         keywords = [k.strip() for k in q.split(",") if k.strip()]
         if not keywords:
             return True
-        text = (paper.abstract or "").lower()
+        text = f"{paper.title}\n{paper.abstract or ''}".lower()
         return all(k in text for k in keywords)
 
     def _apply_filter(self, query: str) -> None:
