@@ -6,8 +6,11 @@ Guidance for coding agents (and humans) working in this repository. See
 ## What this is
 
 **ConfLens** — a NiceGUI web app that browses conference papers (ACL Anthology,
-IJCAI), classifies them against a theme with an LLM, discovers topics, and
-synthesises per-topic findings. Python 3.13, managed with **uv**.
+EMNLP, NAACL, IJCAI, and OpenReview / ICLR · NeurIPS), classifies them against a
+theme with an LLM, discovers topics, and synthesises per-topic findings. It also
+flags near-duplicate titles and offers a fully client-side results view
+(live confidence re-threshold, keyword search + highlight, sort/author facets,
+save/load a run). Python 3.13, managed with **uv**.
 
 ## Setup & run
 
@@ -25,18 +28,29 @@ Docker: `docker compose up --build` (see the README).
 
 ## Checks before you commit
 
-There is no formal test suite; verify changes like this:
+Run the full gate — CI (GitHub Actions) runs the same three on every push/PR:
 
-- **Compile everything:** `uv run python -m py_compile conference_analyzer/*.py run.py`
-- **Boot the app:** run `uv run conference-analyzer`, confirm `GET /` returns 200
+```bash
+uv run ruff check .        # lint (also `ruff check --fix .` to auto-fix imports)
+uv run pytest -q           # test suite — network- and API-free, fast
+uv build                   # wheel + sdist build
+```
+
+The tests live in `tests/` and are deterministic: parsers run on HTML/JSON
+fixtures and the LLM stages use a fake `LLMClient` (a class with a
+`structured()` method), so **no network or API keys are needed**. When you add
+behaviour, add a test next to the matching `tests/test_*.py`.
+
+Beyond the automated gate, for changes with real runtime surface:
+
+- **Boot the app:** `uv run conference-analyzer`, confirm `GET /` returns 200
   and the logs are clean.
-- **Scraper/parser changes:** validate against the live page (counts, a sample
-  record's title/authors/abstract). The ACL listing pages are large and may
+- **Scraper/source changes:** also validate against the live source (counts, a
+  sample record's title/authors/abstract). ACL listing pages are large and may
   truncate mid-download — `_robust_get` retries for a complete read; don't cache
-  a partial.
-- **Classifier / topics logic:** exercise with a small fake `LLMClient` (a class
-  with a `structured()` method) rather than real API calls — see how the caching
-  behaviour was validated in the commit history.
+  a partial. OpenReview's v2 API may challenge anonymous requests from some IPs —
+  set `OPENREVIEW_USERNAME`/`OPENREVIEW_PASSWORD` or `OPENREVIEW_TOKEN` to
+  authenticate (see `.env.example`).
 
 Keep changes ASCII-clean and match the surrounding style (dataclasses, targeted
 regexes over heavyweight parsers, small focused modules).
@@ -45,11 +59,12 @@ regexes over heavyweight parsers, small focused modules).
 
 | Area | Module |
 |------|--------|
-| UI + exports | `app.py`, `pptx_export.py` |
+| UI + exports | `app.py`, `pptx_export.py`, `bibtex.py` |
 | Orchestration | `pipeline.py` (`AnalysisConfig`, `run_analysis`) |
-| Sources (scraping) | `sources.py` (registry + `make_source`), `scraper.py` |
+| Sources | `sources.py` (registry + `make_source`; `IJCAISource`, `OpenReviewSource`), `scraper.py` (`AnthologyScraper` — also serves EMNLP/NAACL) |
 | LLM providers | `llm.py` (`LLMClient`, `make_client`) |
 | Classify / topics | `classifier.py`, `topics.py` |
+| Near-duplicate detection | `dedup.py` (`annotate_duplicates`) |
 | Cache / models | `cache.py`, `models.py` |
 
 ## Conventions

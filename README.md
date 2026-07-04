@@ -33,6 +33,14 @@ A desktop-style web app (built with [NiceGUI](https://nicegui.io)) that:
 
 ![overview](docs/overview.png)
 
+## Contents
+
+- [Quick start](#quick-start) · [Run with Docker](#run-with-docker) · [LLM providers](#llm-providers)
+- [Architecture](#architecture) · [How it works](#how-it-works)
+- [Configuration](#configuration-in-the-ui) · [Features](#features)
+- [Caching](#caching) · [Cost](#cost) · [BERTopic](#optional-bertopic)
+- [Development](#development)
+
 ## Quick start
 
 Requires Python 3.13+ and [uv](https://docs.astral.sh/uv/).
@@ -110,7 +118,7 @@ flowchart LR
     PIPE --> TOP["topics.py<br/>model + summarize"]
     CLS --> LLM["llm.py<br/>Anthropic · OpenAI · LiteLLM"]
     TOP --> LLM
-    PIPE --> RES["AnalysisResult"] --> EXP["PPTX · JSON · CSV"]
+    PIPE --> RES["AnalysisResult"] --> EXP["PPTX · BibTeX · JSON · CSV"]
     SRC -. cache .-> CACHE[("~/.cache/conference_analyzer")]
     CLS -. cache .-> CACHE
     TOP -. cache .-> CACHE
@@ -125,12 +133,13 @@ data-model and caching diagrams, plus extension points.
 |-------|--------|-------|
 | Sources | `conference_analyzer/sources.py` | Pluggable adapters (ACL Anthology, EMNLP, NAACL, IJCAI, OpenReview) behind one interface; registry + factory. |
 | Scrape listing | `conference_analyzer/scraper.py` | ACL Anthology adapter: parses the event page; abstracts + authors fetched per paper and cached. |
+| Near-duplicates | `conference_analyzer/dedup.py` | Flags near-identical titles (union-find + `difflib`); dependency-free. |
 | Classify | `conference_analyzer/classifier.py` | Batched, structured-output calls; relevance + confidence + a one-line reason per paper (cached). |
-| Topic model | `conference_analyzer/topics.py` | `llm` backend derives a taxonomy and assigns papers; `bertopic` backend optional. |
+| Topic model | `conference_analyzer/topics.py` | `llm` backend derives a taxonomy and assigns papers (primary + optional secondary topic); `bertopic` backend optional. |
 | Summarize | `conference_analyzer/topics.py` | Per-topic description + 5–10 common findings across the topic's papers (cached). |
 | LLM providers | `conference_analyzer/llm.py` | One `structured()` interface over Anthropic / OpenAI / LiteLLM. |
-| Orchestrate | `conference_analyzer/pipeline.py` | Runs the stages with progress reporting. |
-| UI / exports | `conference_analyzer/app.py`, `pptx_export.py` | NiceGUI; ECharts chart; PPTX / JSON / CSV export. |
+| Orchestrate | `conference_analyzer/pipeline.py` | Runs the stages with progress reporting and cooperative cancel. |
+| UI / exports | `conference_analyzer/app.py`, `pptx_export.py`, `bibtex.py` | NiceGUI; ECharts chart; interactive results view; PPTX / BibTeX / JSON / CSV export. |
 
 ## Configuration (in the UI)
 
