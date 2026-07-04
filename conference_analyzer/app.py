@@ -45,6 +45,9 @@ class AnalyzerUI:
         self.status_label: Optional[ui.label] = None
         self.log_area: Optional[ui.log] = None
         self.results_container: Optional[ui.column] = None
+        self.topics_container: Optional[ui.column] = None
+        self.search: Optional[ui.input] = None
+        self.filter_status: Optional[ui.label] = None
 
     # ------------------------------------------------------------------ #
     # Layout
@@ -311,7 +314,9 @@ class AnalyzerUI:
 
             self._render_summary(result)
             self._render_chart(result)
-            self._render_topics(result)
+            self._render_filter_bar()
+            self.topics_container = ui.column().style("width:100%; gap:18px;")
+        self._render_topics(result, "")
 
     def _render_summary(self, result: AnalysisResult) -> None:
         with ui.card().classes("w-full ca-card").style("padding:18px 22px;"):
@@ -371,45 +376,117 @@ class AnalyzerUI:
                 }
             ).style(f"height:{max(160, 46 * len(topics))}px; width:100%;")
 
-    def _render_topics(self, result: AnalysisResult) -> None:
+    def _render_filter_bar(self) -> None:
+        with ui.card().classes("w-full ca-card").style("padding:12px 18px;"):
+            with ui.row().classes("w-full items-center").style("gap:12px; flex-wrap:wrap;"):
+                ui.icon("search").style(f"color:{MUTED};")
+                self.search = (
+                    ui.input(
+                        placeholder="Filter papers by keywords in the title or abstract "
+                        "(comma-separated; each keyword may contain spaces)"
+                    )
+                    .props("dense clearable")
+                    .style("flex:1 1 320px;")
+                )
+                self.search.on_value_change(lambda e: self._apply_filter(e.value or ""))
+                self.filter_status = ui.label("").classes("ca-muted").style(
+                    "font-size:.8rem; white-space:nowrap;"
+                )
+
+    @staticmethod
+    def _paper_matches(paper, query: str) -> bool:
+        q = query.strip().lower()
+        if not q:
+            return True
+        # Split on commas so each keyword may itself contain spaces; a paper
+        # matches only if its title or abstract contains every keyword (AND).
+        keywords = [k.strip() for k in q.split(",") if k.strip()]
+        if not keywords:
+            return True
+        text = f"{paper.title}\n{paper.abstract or ''}".lower()
+        return all(k in text for k in keywords)
+
+    def _apply_filter(self, query: str) -> None:
+        if self.result:
+            self._render_topics(self.result, query)
+
+    def _render_topics(self, result: AnalysisResult, query: str = "") -> None:
+        if self.topics_container is None:
+            return
+        self.topics_container.clear()
         by_id = {p.paper_id: p for p in result.relevant_papers}
-        for t in result.topics:
-            color = TOPIC_COLORS[t.topic_id % len(TOPIC_COLORS)]
-            with ui.card().classes("w-full ca-card").style("padding:0; overflow:hidden;"):
-                with ui.expansion().classes("w-full") as exp:
-                    with exp.add_slot("header"):
-                        with ui.row().classes("w-full items-center").style("gap:12px;"):
-                            ui.element("div").style(
-                                f"width:10px; height:10px; border-radius:50%; background:{color};"
-                            )
-                            ui.label(t.name).style(f"font-weight:700; color:{INK};")
-                            ui.label(f"{t.count} paper{'s' if t.count != 1 else ''}").classes(
-                                "ca-badge"
-                            ).style(f"background:{color};")
-                    with ui.column().classes("w-full").style("padding:4px 18px 14px 18px; gap:10px;"):
-                        if t.description:
-                            ui.label(t.description).style(
-                                f"color:{INK}; font-size:.9rem; line-height:1.5;"
-                            )
-                        if t.findings:
-                            with ui.column().classes("w-full").style(
-                                f"gap:4px; background:#f8fafc; border:1px solid {LINE}; "
-                                "border-radius:8px; padding:12px 16px;"
-                            ):
-                                ui.label("Main findings across this topic").style(
-                                    f"font-weight:700; color:{PRIMARY}; font-size:.8rem; "
-                                    "text-transform:uppercase; letter-spacing:.04em;"
+        filtering = bool(query.strip())
+        shown_papers = 0
+        shown_topics = 0
+
+        with self.topics_container:
+            for t in result.topics:
+                papers = [by_id[pid] for pid in t.paper_ids if pid in by_id]
+                if filtering:
+                    papers = [p for p in papers if self._paper_matches(p, query)]
+                    if not papers:
+                        continue  # hide topics with no matches while filtering
+                papers.sort(key=lambda p: p.confidence or 0, reverse=True)
+                shown_papers += len(papers)
+                shown_topics += 1
+                color = TOPIC_COLORS[t.topic_id % len(TOPIC_COLORS)]
+                badge = f"{len(papers)} of {t.count}" if filtering else (
+                    f"{t.count} paper{'s' if t.count != 1 else ''}"
+                )
+                with ui.card().classes("w-full ca-card").style("padding:0; overflow:hidden;"):
+                    with ui.expansion().classes("w-full").props(
+                        "default-opened" if filtering else ""
+                    ) as exp:
+                        with exp.add_slot("header"):
+                            with ui.row().classes("w-full items-center").style("gap:12px;"):
+                                ui.element("div").style(
+                                    f"width:10px; height:10px; border-radius:50%; background:{color};"
                                 )
-                                ui.markdown(
-                                    "\n".join(f"- {f}" for f in t.findings)
-                                ).style(f"color:{INK}; font-size:.85rem;")
-                        ui.label(f"Papers ({t.count})").classes("ca-muted").style(
-                            "font-size:.8rem; font-weight:600; margin-top:4px;"
-                        )
-                        papers = [by_id[pid] for pid in t.paper_ids if pid in by_id]
-                        papers.sort(key=lambda p: p.confidence or 0, reverse=True)
-                        for p in papers:
-                            self._render_paper(p)
+                                ui.label(t.name).style(f"font-weight:700; color:{INK};")
+                                ui.label(badge).classes("ca-badge").style(f"background:{color};")
+                        with ui.column().classes("w-full").style(
+                            "padding:4px 18px 14px 18px; gap:10px;"
+                        ):
+                            if t.description:
+                                ui.label(t.description).style(
+                                    f"color:{INK}; font-size:.9rem; line-height:1.5;"
+                                )
+                            if t.findings:
+                                with ui.column().classes("w-full").style(
+                                    f"gap:4px; background:#f8fafc; border:1px solid {LINE}; "
+                                    "border-radius:8px; padding:12px 16px;"
+                                ):
+                                    ui.label("Main findings across this topic").style(
+                                        f"font-weight:700; color:{PRIMARY}; font-size:.8rem; "
+                                        "text-transform:uppercase; letter-spacing:.04em;"
+                                    )
+                                    ui.markdown(
+                                        "\n".join(f"- {f}" for f in t.findings)
+                                    ).style(f"color:{INK}; font-size:.85rem;")
+                            label = (
+                                f"Papers ({len(papers)} of {t.count} match)"
+                                if filtering
+                                else f"Papers ({t.count})"
+                            )
+                            ui.label(label).classes("ca-muted").style(
+                                "font-size:.8rem; font-weight:600; margin-top:4px;"
+                            )
+                            for p in papers:
+                                self._render_paper(p)
+
+            if filtering and shown_topics == 0:
+                ui.label("No papers match those keywords in their abstract.").classes(
+                    "ca-muted"
+                ).style("padding:8px 2px;")
+
+        if self.filter_status is not None:
+            if filtering:
+                self.filter_status.set_text(
+                    f"{shown_papers} of {len(result.relevant_papers)} papers · "
+                    f"{shown_topics} of {len(result.topics)} topics"
+                )
+            else:
+                self.filter_status.set_text("")
 
     def _render_paper(self, p) -> None:
         with ui.column().classes("w-full").style(
