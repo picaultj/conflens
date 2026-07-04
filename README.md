@@ -15,6 +15,7 @@ A desktop-style web app (built with [NiceGUI](https://nicegui.io)) that:
 
 1. **Browses** papers from a chosen **source** and retrieves their abstracts:
    - the [ACL Anthology](https://aclanthology.org) (default; e.g. `acl-2026`),
+   - **EMNLP** proceedings (also on the ACL Anthology; e.g. `emnlp-2024`),
    - **IJCAI** accepted-paper pages (e.g. <https://2026.ijcai.org/accepted-papers/>), and
    - **OpenReview** venues — **ICLR / NeurIPS** and more — via the public JSON API,
      by venue id (e.g. `ICLR.cc/2024/Conference`, `NeurIPS.cc/2024/Conference`).
@@ -105,7 +106,7 @@ pluggable *LLM provider* (which model), with every expensive step cached on disk
 ```mermaid
 flowchart LR
     UI["NiceGUI UI<br/>app.py"] --> PIPE["pipeline.py"]
-    PIPE --> SRC["sources.py<br/>ACL · IJCAI · OpenReview"]
+    PIPE --> SRC["sources.py<br/>ACL · EMNLP · IJCAI · OpenReview"]
     PIPE --> CLS["classifier.py"]
     PIPE --> TOP["topics.py<br/>model + summarize"]
     CLS --> LLM["llm.py<br/>Anthropic · OpenAI · LiteLLM"]
@@ -123,7 +124,7 @@ data-model and caching diagrams, plus extension points.
 
 | Stage | Module | Notes |
 |-------|--------|-------|
-| Sources | `conference_analyzer/sources.py` | Pluggable adapters (ACL Anthology, IJCAI, OpenReview) behind one interface; registry + factory. |
+| Sources | `conference_analyzer/sources.py` | Pluggable adapters (ACL Anthology, EMNLP, IJCAI, OpenReview) behind one interface; registry + factory. |
 | Scrape listing | `conference_analyzer/scraper.py` | ACL Anthology adapter: parses the event page; abstracts + authors fetched per paper and cached. |
 | Classify | `conference_analyzer/classifier.py` | Batched, structured-output calls; relevance + confidence + a one-line reason per paper (cached). |
 | Topic model | `conference_analyzer/topics.py` | `llm` backend derives a taxonomy and assigns papers; `bertopic` backend optional. |
@@ -134,8 +135,10 @@ data-model and caching diagrams, plus extension points.
 
 ## Configuration (in the UI)
 
-- **Source** — `ACL Anthology`, `IJCAI`, or `OpenReview (ICLR / NeurIPS)`.
-  Switching prefills the base URL and target below and relabels them.
+- **Source** — `ACL Anthology`, `EMNLP (ACL Anthology)`, `IJCAI`, or
+  `OpenReview (ICLR / NeurIPS)`. Switching prefills the base URL and target below
+  and relabels them. (ACL Anthology and EMNLP share one adapter — either accepts
+  any Anthology event slug, e.g. `acl-2024`, `emnlp-2023`, `naacl-2024`.)
 - **Base URL** — the site/API root (e.g. `https://aclanthology.org`,
   `https://2026.ijcai.org`, `https://api2.openreview.net`); change it to point at
   a mirror, another year, or the v1 API host (`https://api.openreview.net`).

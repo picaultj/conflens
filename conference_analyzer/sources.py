@@ -6,10 +6,13 @@ Each source exposes the same small interface so the pipeline is site-agnostic:
 * ``list_papers(target, force_refresh)``— return papers (titles, links, …)
 * ``enrich_abstracts(papers, …)``       — fill abstracts/authors if not already present
 
-Three sources ship today:
+Sources shipping today:
 
 * **aclanthology** — the ACL Anthology (:class:`~.scraper.AnthologyScraper`); a
   listing page plus per-paper abstract pages.
+* **emnlp** — EMNLP proceedings, which also live on the ACL Anthology; the same
+  adapter as ``aclanthology`` with an EMNLP event prefilled (any Anthology event
+  slug works for either).
 * **ijcai** — IJCAI accepted-paper pages (e.g. ``2026.ijcai.org/accepted-papers``),
   where every paper's title, authors, abstract and keywords live on one page.
 * **openreview** — OpenReview venues (ICLR, NeurIPS, …) via the public JSON API;
@@ -436,6 +439,13 @@ SOURCES = {
         "base_label": "Anthology base URL",
         "target_label": "Event (slug or full URL)",
     },
+    "emnlp": {
+        "label": "EMNLP (ACL Anthology)",
+        "base": "https://aclanthology.org",
+        "target": "emnlp-2024",
+        "base_label": "Anthology base URL",
+        "target_label": "Event (slug or full URL)",
+    },
     "ijcai": {
         "label": "IJCAI",
         "base": "https://2026.ijcai.org",
@@ -455,7 +465,9 @@ SOURCES = {
 
 def make_source(source: str, base_url: str, cache_dir: Optional[str] = None):
     """Return a source adapter for ``source`` (raises on unknown keys)."""
-    if source == "aclanthology":
+    if source in ("aclanthology", "emnlp"):
+        # EMNLP proceedings live on the ACL Anthology; same adapter, different
+        # default event. Any Anthology event slug works for either key.
         return AnthologyScraper(base_url=base_url, cache_dir=cache_dir)
     if source == "ijcai":
         return IJCAISource(base_url=base_url, cache_dir=cache_dir)

@@ -80,6 +80,10 @@ def run_analysis(
                     " The proceedings may not be published yet — try a past event "
                     "such as 'acl-2024'."
                 ),
+                "emnlp": (
+                    " The proceedings may not be published yet — try a past event "
+                    "such as 'emnlp-2023'."
+                ),
                 "ijcai": " Check the URL points at the accepted-papers page.",
                 "openreview": (
                     " Check the venue id (e.g. 'ICLR.cc/2024/Conference' or "
