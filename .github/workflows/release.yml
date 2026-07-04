@@ -1,7 +1,7 @@
 name: Release
 
-# When a pull request is merged into main, bump the version in pyproject.toml,
-# commit it back to main, and create a matching tag.
+# When a pull request is merged into main, bump the version in pyproject.toml
+# (and keep uv.lock in sync), commit it back to main, and create a matching tag.
 #
 # Bump level is patch by default; add a "minor" or "major" label to the PR to
 # bump those instead. The version-bump commit and tag are pushed with the
@@ -38,6 +38,11 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
       - name: Configure git identity
         run: |
           git config user.name "github-actions[bot]"
@@ -63,7 +68,9 @@ jobs:
           fi
 
           sed -i -E "s/^version *= *\"[0-9]+\.[0-9]+\.[0-9]+\"/version = \"${NEW}\"/" pyproject.toml
-          git add pyproject.toml
+          # Keep the lockfile's project version in step with pyproject.toml.
+          uv lock
+          git add pyproject.toml uv.lock
           git commit -m "chore: release ${TAG} [skip ci]"
           git tag -a "${TAG}" -m "Release ${TAG} (PR #${PR_NUMBER}: ${PR_TITLE})"
           git push origin HEAD:main
