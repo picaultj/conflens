@@ -75,12 +75,26 @@ def run_analysis(
         progress.set("listing", f"Fetching paper list from {event_url} ({origin})", 0.0)
         papers = scraper.list_papers(cfg.event, force_refresh=cfg.refresh)
         if not papers:
-            hint = (
-                " The proceedings may not be published yet — try a past event such "
-                "as 'acl-2024'."
-                if cfg.source == "aclanthology"
-                else " Check the URL points at the accepted-papers page."
-            )
+            hints = {
+                "aclanthology": (
+                    " The proceedings may not be published yet — try a past event "
+                    "such as 'acl-2024'."
+                ),
+                "emnlp": (
+                    " The proceedings may not be published yet — try a past event "
+                    "such as 'emnlp-2023'."
+                ),
+                "naacl": (
+                    " The proceedings may not be published yet — try a past event "
+                    "such as 'naacl-2024'."
+                ),
+                "ijcai": " Check the URL points at the accepted-papers page.",
+                "openreview": (
+                    " Check the venue id (e.g. 'ICLR.cc/2024/Conference' or "
+                    "'NeurIPS.cc/2024/Conference') — decisions may not be posted yet."
+                ),
+            }
+            hint = hints.get(cfg.source, "")
             progress.set("listing", "No papers found on that page." + hint, 1.0)
             progress.done = True
             return result
