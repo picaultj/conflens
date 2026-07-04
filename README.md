@@ -23,15 +23,13 @@ A desktop-style web app (built with [NiceGUI](https://nicegui.io)) that:
 
    The scraper is pluggable — adding another conference is one adapter in
    `conference_analyzer/sources.py`.
-2. **Classifies** each paper with an LLM (Claude) against a customizable
+2. **Classifies** each paper with an LLM against a customizable
    **theme** (default *Agentic AI*), keeping only those whose core contribution
    matches.
 3. **Discovers topics** within the selected papers (LLM-based by default, with an
    optional BERTopic backend) and shows, for each topic, how many papers it
    contains and a direct **PDF link** to the full text of every paper.
 
-The interface is deliberately sober and professional: white background, a single
-navy accent, clean cards.
 
 ![overview](docs/overview.png)
 
