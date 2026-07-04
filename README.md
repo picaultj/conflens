@@ -36,7 +36,7 @@ A desktop-style web app (built with [NiceGUI](https://nicegui.io)) that:
 
 ## Contents
 
-- [Quick start](#quick-start) · [Run with Docker](#run-with-docker) · [LLM providers](#llm-providers)
+- [Quick start](#quick-start) · [Run with Docker](#run-with-docker) · [Deploy to Hugging Face Spaces](#deploy-to-hugging-face-spaces) · [LLM providers](#llm-providers)
 - [Architecture](#architecture) · [How it works](#how-it-works)
 - [Configuration](#configuration-in-the-ui) · [Features](#features)
 - [Caching](#caching) · [Cost](#cost) · [BERTopic](#optional-bertopic)
@@ -85,6 +85,37 @@ docker run --rm -p 8080:8080 --env-file .env \
 
 To also build the optional BERTopic backend into the image:
 `docker build --build-arg EXTRAS="--extra all --extra bertopic" -t conference-analyzer .`
+
+### Deploy to Hugging Face Spaces
+
+ConfLens runs on Hugging Face as a **Docker Space** (it builds the `Dockerfile`
+above, which serves on `0.0.0.0:8080`). A GitHub Action mirrors `main` to the
+Space on every push, so it stays in sync automatically.
+
+**One-time setup:**
+
+1. **Create the Space** — on <https://huggingface.co/new-space>, pick **Docker →
+   Blank**, and note its owner + name (e.g. `your-user/conflens`).
+2. **Give GitHub a token** — create a Hugging Face access token with **write**
+   scope (Settings → Access Tokens) and add it to this GitHub repo as a secret
+   named **`HF_TOKEN`** (Settings → Secrets and variables → Actions).
+3. **Point the action at your Space** *(optional)* — the workflow defaults to
+   owner = the GitHub repo owner and space = `conflens`. If your Space differs,
+   set repo **variables** `HF_USERNAME` and `HF_SPACE`.
+4. **Add your API keys as *Space* secrets** — in the Space's *Settings →
+   Variables and secrets*, add whatever your provider needs (e.g.
+   `ANTHROPIC_API_KEY`, or `OPENAI_API_KEY` / `OPENAI_BASE_URL`; see
+   [`.env.example`](.env.example)). The app reads them as environment variables.
+
+That's it — push to `main` (or run the **Sync to Hugging Face Space** workflow
+manually) and the Space rebuilds. The Space metadata (`sdk: docker`,
+`app_port: 8080`, …) lives in
+[`.github/huggingface/space_readme_header.md`](.github/huggingface/space_readme_header.md);
+the action prepends it to the README it pushes, so the GitHub README stays clean.
+
+> The Space's filesystem is ephemeral, so the on-disk cache resets on rebuild.
+> For persistent caching, attach Hugging Face **persistent storage** and point
+> `--cache-dir` at its mount (`/data`).
 
 ### LLM providers
 
