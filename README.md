@@ -1,5 +1,6 @@
 # ConfLens: a Conference Paper Analyzer
 
+[![CI](https://img.shields.io/github/actions/workflow/status/picaultj/conflens/ci.yml?branch=main&logo=github&label=CI)](https://github.com/picaultj/conflens/actions/workflows/ci.yml)
 [![Downloads](https://img.shields.io/github/downloads/picaultj/conflens/total?logo=github&label=downloads)](https://github.com/picaultj/conflens/releases)
 [![Release](https://img.shields.io/github/v/release/picaultj/conflens?logo=github&label=release&sort=semver)](https://github.com/picaultj/conflens/releases)
 [![Stars](https://img.shields.io/github/stars/picaultj/conflens?logo=github&style=flat)](https://github.com/picaultj/conflens/stargazers)
@@ -158,7 +159,9 @@ data-model and caching diagrams, plus extension points.
   with AND; topics with no match are hidden and matching ones auto-expand.
 - Expandable abstracts and a per-paper relevance rationale.
 - One-click **PDF** links to every paper's full text.
-- Export results as a **PPTX** slide deck, **JSON**, or **CSV**.
+- A **Cancel** button and elapsed-time readout for long runs; LLM calls
+  automatically retry transient errors (rate limits / 5xx / timeouts).
+- Export results as a **PPTX** slide deck, **BibTeX**, **JSON**, or **CSV**.
   The deck (built with `python-pptx`) has a title slide, a papers-per-topic
   chart, and per topic an overview slide (description + common findings) plus
   slides listing its papers with clickable PDF links.
@@ -206,3 +209,17 @@ uv sync --extra bertopic
 
 Then pick **BERTopic** as the topic engine in the UI. It clusters
 sentence-embeddings instead of asking the LLM to organise topics.
+
+## Development
+
+```bash
+uv sync              # installs the dev group (pytest + ruff) too
+uv run pytest        # run the test suite
+uv run ruff check .  # lint
+uv build             # build the wheel/sdist
+```
+
+CI (GitHub Actions) runs ruff + pytest + build on every push and PR. The tests
+are network- and API-free (parsers run on HTML fixtures; the LLM stages use a
+fake client), so they're fast and deterministic.
+

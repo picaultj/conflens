@@ -7,6 +7,7 @@ import csv
 import io
 import json
 import os
+import time
 from typing import Optional
 
 from nicegui import ui
@@ -14,8 +15,8 @@ from nicegui import ui
 from .cache import default_cache_dir
 from .llm import DEFAULT_MODELS, MODEL_SUGGESTIONS, PROVIDERS, env_key_for
 from .models import AnalysisResult
-from .sources import SOURCES
 from .pipeline import AnalysisConfig, Progress, run_analysis
+from .sources import SOURCES
 
 # Sober, professional palette ------------------------------------------------
 PRIMARY = "#1f4e79"   # deep navy
@@ -44,6 +45,9 @@ class AnalyzerUI:
         self.bar: Optional[ui.linear_progress] = None
         self.status_label: Optional[ui.label] = None
         self.log_area: Optional[ui.log] = None
+        self.cancel_btn: Optional[ui.button] = None
+        self.elapsed_label: Optional[ui.label] = None
+        self._t0: float = 0.0
         self.results_container: Optional[ui.column] = None
         self.topics_container: Optional[ui.column] = None
         self.search: Optional[ui.input] = None
@@ -208,7 +212,15 @@ class AnalyzerUI:
             "padding:18px; display:none;"
         )
         with self.progress_card:
-            self.status_label = ui.label("").style(f"font-weight:600; color:{INK};")
+            with ui.row().classes("w-full items-center justify-between").style("gap:12px;"):
+                self.status_label = ui.label("").style(f"font-weight:600; color:{INK};")
+                with ui.row().classes("items-center").style("gap:10px;"):
+                    self.elapsed_label = ui.label("").classes("ca-muted").style(
+                        "font-size:.8rem; font-variant-numeric:tabular-nums;"
+                    )
+                    self.cancel_btn = ui.button(
+                        "Cancel", icon="stop", on_click=self._cancel
+                    ).props("outline dense color=negative")
             self.bar = ui.linear_progress(value=0, show_value=False).props("rounded")
             with ui.expansion("Activity log").classes("w-full").style("margin-top:4px;"):
                 self.log_area = ui.log(max_lines=200).classes("w-full").style(
@@ -242,11 +254,14 @@ class AnalyzerUI:
         self.progress = Progress()
         self.result = None
         self._logged = 0
+        self._t0 = time.monotonic()
         self.run_btn.props("loading")
+        self.cancel_btn.props(remove="disable")
         self.results_container.clear()
         self.progress_card.style("display:block;")
         self.bar.set_value(0)
         self.status_label.set_text("Starting…")
+        self.elapsed_label.set_text("0:00")
         self.log_area.clear()
 
         cfg = AnalysisConfig(
@@ -278,13 +293,24 @@ class AnalyzerUI:
             self._tick()  # final flush
             self.running = False
             self.run_btn.props(remove="loading")
+            self.cancel_btn.props("disable")
 
         if self.progress.error:
             self.status_label.set_text(f"Error: {self.progress.error}")
             ui.notify(self.progress.error, type="negative", multi_line=True)
             return
+        if self.progress.cancelled:
+            self.status_label.set_text("Cancelled.")
+            ui.notify("Analysis cancelled.", type="info")
+            return
         if self.result:
             self._render_results(self.result)
+
+    def _cancel(self) -> None:
+        if self.running:
+            self.progress.cancelled = True
+            self.status_label.set_text("Cancelling…")
+            self.cancel_btn.props("disable")
 
     def _tick(self) -> None:
         # flush new log lines
@@ -294,6 +320,9 @@ class AnalyzerUI:
         if self.progress.message:
             self.status_label.set_text(self.progress.message)
         self.bar.set_value(self.progress.fraction)
+        if self.running:
+            secs = int(time.monotonic() - self._t0)
+            self.elapsed_label.set_text(f"{secs // 60}:{secs % 60:02d}")
 
     # ------------------------------------------------------------------ #
     # Results rendering
@@ -335,6 +364,9 @@ class AnalyzerUI:
                         "outline dense"
                     )
                     ui.button("CSV", icon="download", on_click=self._download_csv).props(
+                        "outline dense"
+                    )
+                    ui.button("BibTeX", icon="download", on_click=self._download_bibtex).props(
                         "outline dense"
                     )
             ui.link(
@@ -542,6 +574,17 @@ class AnalyzerUI:
             return
         data = json.dumps(self.result.to_dict(), indent=2, ensure_ascii=False)
         ui.download.content(data.encode("utf-8"), "analysis.json")
+
+    def _download_bibtex(self) -> None:
+        if not self.result:
+            return
+        from .bibtex import build_bibtex
+
+        ui.download.content(
+            build_bibtex(self.result).encode("utf-8"),
+            "papers.bib",
+            media_type="application/x-bibtex",
+        )
 
     def _download_csv(self) -> None:
         if not self.result:

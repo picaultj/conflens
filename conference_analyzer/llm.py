@@ -18,8 +18,10 @@ from __future__ import annotations
 
 import json
 import os
+import random
 import re
-from typing import Any, Optional
+import time
+from typing import Any, Callable, Optional
 
 # ---------------------------------------------------------------------------
 # Provider / model catalogue (suggestions shown in the UI; any string works)
@@ -45,6 +47,60 @@ _EFFORT_MODELS = {"claude-opus-4-8", "claude-sonnet-4-6"}
 
 class LLMError(RuntimeError):
     pass
+
+
+# ---------------------------------------------------------------------------
+# Transient-error retry (rate limits, overload, 5xx, timeouts, connection)
+# ---------------------------------------------------------------------------
+_MAX_ATTEMPTS = 4
+_TRANSIENT_STATUS = {408, 409, 425, 429, 500, 502, 503, 504, 529}
+_TRANSIENT_HINTS = (
+    "rate limit",
+    "overloaded",
+    "timeout",
+    "timed out",
+    "temporarily unavailable",
+    "connection",
+    "econnreset",
+    "too many requests",
+)
+
+
+def _is_transient(exc: Exception) -> bool:
+    """Heuristically decide whether an LLM/provider error is worth retrying.
+
+    Works across SDKs without importing them: checks a numeric status code if
+    present, otherwise the exception class name / message.
+    """
+    status = getattr(exc, "status_code", None) or getattr(exc, "status", None)
+    if isinstance(status, int) and status in _TRANSIENT_STATUS:
+        return True
+    name = type(exc).__name__.lower()
+    if any(k in name for k in ("ratelimit", "timeout", "connection", "overloaded", "apistatus")):
+        # APIStatusError with a non-transient status is filtered above by the
+        # status check returning False only when a status is present; here it
+        # has no known status, so treat connection/timeout/ratelimit as transient.
+        if "apistatus" in name and not isinstance(status, int):
+            return False
+        return True
+    msg = str(exc).lower()
+    return any(h in msg for h in _TRANSIENT_HINTS)
+
+
+def _retry(fn: Callable[[], Any], *, max_attempts: int = _MAX_ATTEMPTS) -> Any:
+    """Call ``fn`` with exponential backoff on transient errors."""
+    last: Optional[Exception] = None
+    for attempt in range(max_attempts):
+        try:
+            return fn()
+        except Exception as e:  # noqa: BLE001 - provider exceptions vary
+            last = e
+            if attempt == max_attempts - 1 or not _is_transient(e):
+                raise
+            delay = min(1.5 * (2 ** attempt), 20.0) + random.uniform(0, 0.75)
+            time.sleep(delay)
+    assert last is not None
+    raise last
 
 
 # ---------------------------------------------------------------------------
@@ -123,14 +179,17 @@ class AnthropicClient(LLMClient):
         }
         if self.model in _EFFORT_MODELS:
             output_config["effort"] = effort
-        try:
-            resp = self._client.messages.create(
+        def _create():
+            return self._client.messages.create(
                 model=self.model,
                 max_tokens=max_tokens,
                 system=system,
                 messages=[{"role": "user", "content": user}],
                 output_config=output_config,
             )
+
+        try:
+            resp = _retry(_create)
         except self._anthropic.APIStatusError as e:
             raise LLMError(f"Anthropic API error ({e.status_code}): {e.message}") from e
         except self._anthropic.APIConnectionError as e:
@@ -227,7 +286,7 @@ def _openai_compat_call(create_fn, model, messages, max_tokens, **extra) -> str:
     ]
     last_err: Optional[Exception] = None
     for opts in attempts:
-        try:
+        def _create():
             resp = create_fn(
                 model=model,
                 messages=messages,
@@ -236,6 +295,12 @@ def _openai_compat_call(create_fn, model, messages, max_tokens, **extra) -> str:
                 **extra,
             )
             return resp.choices[0].message.content
+
+        try:
+            # Retry transient errors (rate limit / 5xx / timeout) for these opts;
+            # a non-transient error (e.g. param rejected) falls through to the
+            # next, less-demanding attempt.
+            return _retry(_create)
         except Exception as e:  # noqa: BLE001 - provider exceptions vary widely
             last_err = e
     raise LLMError(f"LLM request failed: {last_err}")

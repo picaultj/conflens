@@ -115,6 +115,16 @@ class IJCAISource:
                 pass
 
         page = _robust_get(url, self.timeout)
+        papers = self.parse_papers(page, url)
+        try:
+            with open(cache, "w", encoding="utf-8") as fh:
+                json.dump({"url": url, "papers": [p.to_dict() for p in papers]}, fh)
+        except OSError:
+            pass
+        return papers
+
+    def parse_papers(self, page: str, url: str) -> list[Paper]:
+        """Parse an IJCAI accepted-papers page into papers (no network)."""
         year_m = _YEAR.search(self.base_url) or _YEAR.search(url)
         year = year_m.group(1) if year_m else "0000"
         papers: list[Paper] = []
@@ -151,11 +161,6 @@ class IJCAISource:
                     abstract=abstract,
                 )
             )
-        try:
-            with open(cache, "w", encoding="utf-8") as fh:
-                json.dump({"url": url, "papers": [p.to_dict() for p in papers]}, fh)
-        except OSError:
-            pass
         return papers
 
     def enrich_abstracts(
