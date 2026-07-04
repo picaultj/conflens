@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Optional
 
-from . import classifier
+from . import classifier, dedup
 from . import topics as topic_mod
 from .llm import make_client
 from .models import AnalysisResult
@@ -45,6 +45,7 @@ class AnalysisConfig:
     base_url: str = "https://aclanthology.org"
     event: str = "acl-2026"
     theme: str = "Agentic AI"
+    theme_definition: str = ""     # optional clarification of what the theme includes/excludes
     provider: str = "anthropic"    # "anthropic" | "openai" | "litellm"
     model: str = "claude-opus-4-8"
     llm_base_url: str = ""         # custom endpoint (LiteLLM / OpenAI-compatible)
@@ -94,6 +95,9 @@ def run_analysis(
         scraper.enrich_abstracts(papers, progress=abs_prog, force_refresh=cfg.refresh)
         result.papers = papers
         result.scanned = len(papers)
+        result.duplicate_groups = dedup.annotate_duplicates(papers)
+        if result.duplicate_groups:
+            progress.set("listing", f"Flagged {result.duplicate_groups} near-duplicate group(s).", 1.0)
         progress.check_cancel()
 
         # 3. Classify ---------------------------------------------------
@@ -114,6 +118,7 @@ def run_analysis(
             cache_sig=f"{cfg.provider}:{cfg.model}",
             force_refresh=cfg.refresh,
             cancel=progress.check_cancel,
+            theme_definition=cfg.theme_definition,
         )
         result.relevant_papers = relevant
         progress.set("classify", f"{len(relevant)} of {len(papers)} papers match the theme.", 1.0)
@@ -129,7 +134,13 @@ def run_analysis(
 
         progress.set("topics", "Discovering topics…", 0.0)
         result.topics = topic_mod.model_topics(
-            cfg.topic_backend, client, cfg.theme, relevant, n_topics=cfg.n_topics, progress=top_prog
+            cfg.topic_backend,
+            client,
+            cfg.theme,
+            relevant,
+            n_topics=cfg.n_topics,
+            progress=top_prog,
+            theme_definition=cfg.theme_definition,
         )
         progress.check_cancel()
 
@@ -148,6 +159,7 @@ def run_analysis(
             cache_sig=f"{cfg.provider}:{cfg.model}",
             force_refresh=cfg.refresh,
             cancel=progress.check_cancel,
+            theme_definition=cfg.theme_definition,
         )
 
         progress.set("done", f"Done — {len(result.topics)} topics across {len(relevant)} papers.", 1.0)

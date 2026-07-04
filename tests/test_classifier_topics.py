@@ -27,9 +27,12 @@ class FakeClient:
         if "topics" in props:  # topic discovery
             return {"topics": [{"name": "T0", "description": "d0"},
                                {"name": "T1", "description": "d1"}]}
-        if "assignments" in props:  # topic assignment
+        if "assignments" in props:  # topic assignment (multi-topic)
             idxs = [int(x) for x in re.findall(r"\[(\d+)\]", user) if x.isdigit()]
-            return {"assignments": [{"index": i, "topic_id": i % 2} for i in idxs]}
+            # index 0 spans both topics; the rest get a single topic.
+            return {"assignments": [
+                {"index": i, "topic_ids": [0, 1] if i == 0 else [i % 2]} for i in idxs
+            ]}
         if "findings" in props:  # per-topic summary
             return {"description": "desc", "findings": ["a", "b", "c"]}
         raise AssertionError("unexpected schema")
@@ -94,8 +97,11 @@ def test_topic_modelling_and_summary(tmp_path):
     papers = _papers(4)
     fc = FakeClient()
     tops = topics.model_topics_llm(fc, "Theme", papers, n_topics=2)
-    assert sum(t.count for t in tops) == len(papers)
+    # paper 0 is in two topics, so total assignments exceed paper count
+    assert sum(t.count for t in tops) == len(papers) + 1
     assert all(p.topic_id is not None for p in papers)
+    p0 = next(p for p in papers if p.paper_id == "p0")
+    assert len(p0.topic_ids) == 2  # multi-topic assignment preserved
 
     fc2 = FakeClient()
     topics.summarize_topics(fc2, "Theme", tops, papers, cache_dir=str(tmp_path), cache_sig="s")

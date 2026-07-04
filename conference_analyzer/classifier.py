@@ -44,9 +44,11 @@ _SCHEMA = {
 }
 
 
-def _batch_prompt(theme: str, batch: list[Paper], offset: int) -> str:
-    lines = [
-        f'Theme: "{theme}"',
+def _batch_prompt(theme: str, batch: list[Paper], offset: int, theme_definition: str = "") -> str:
+    lines = [f'Theme: "{theme}"']
+    if theme_definition and theme_definition.strip():
+        lines.append(f"Scope of the theme (what counts / doesn't): {theme_definition.strip()}")
+    lines += [
         "",
         "For EACH paper below, decide whether its core contribution is about this "
         "theme. Return relevant (true/false), a confidence in [0,1], and a one-sentence "
@@ -70,8 +72,10 @@ def _content_hash(paper: Paper) -> str:
     return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:16]
 
 
-def _cache_path(cache_dir: str, cache_sig: str, theme: str) -> str:
-    digest = hashlib.sha1(f"{cache_sig}|{theme}".encode("utf-8")).hexdigest()[:16]
+def _cache_path(cache_dir: str, cache_sig: str, theme: str, theme_definition: str = "") -> str:
+    digest = hashlib.sha1(
+        f"{cache_sig}|{theme}|{theme_definition}".encode("utf-8")
+    ).hexdigest()[:16]
     return os.path.join(cache_dir, f"classify_{digest}.json")
 
 
@@ -85,6 +89,7 @@ def classify_papers(
     cache_sig: str = "",
     force_refresh: bool = False,
     cancel: Optional[Callable[[], None]] = None,
+    theme_definition: str = "",
 ) -> list[Paper]:
     """Annotate every paper with relevance/confidence/reason in place.
 
@@ -103,7 +108,7 @@ def classify_papers(
     cache_path = None
     if cache_dir:
         os.makedirs(cache_dir, exist_ok=True)
-        cache_path = _cache_path(cache_dir, cache_sig, theme)
+        cache_path = _cache_path(cache_dir, cache_sig, theme, theme_definition)
         if not force_refresh and os.path.exists(cache_path):
             try:
                 with open(cache_path, "r", encoding="utf-8") as fh:
@@ -137,7 +142,7 @@ def classify_papers(
         if cancel:
             cancel()
         batch = todo[start : start + _BATCH_SIZE]
-        prompt = _batch_prompt(theme, batch, start)
+        prompt = _batch_prompt(theme, batch, start, theme_definition)
         data = client.structured(_SYSTEM, prompt, _SCHEMA, max_tokens=4000, effort="low")
         by_index = {r["index"]: r for r in data.get("results", [])}
         for i, paper in enumerate(batch):

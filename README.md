@@ -139,6 +139,10 @@ data-model and caching diagrams, plus extension points.
 - **Event / accepted-papers path** — for ACL, a slug (`acl-2024`, `emnlp-2023`,
   …) or full event URL; for IJCAI, the accepted-papers path or full URL.
 - **Theme** — any phrase; defaults to *Agentic AI*.
+- **Theme definition** — optional free text clarifying what the theme includes
+  or excludes (e.g. *"tool-using LLM agents; exclude pure RL"*). It is threaded
+  into classification, topic discovery, and summaries to sharpen relevance, and
+  is part of the classification cache key.
 - **LLM provider** — Anthropic (default), OpenAI, or LiteLLM.
 - **Model** — free-text; defaults per provider (e.g. `claude-opus-4-8`,
   `gpt-4o-mini`). Suggestions appear as placeholder text.
@@ -154,6 +158,13 @@ data-model and caching diagrams, plus extension points.
 - For each topic, an LLM-generated **description** and **5–10 common findings**
   (synthesised across the topic's papers, not paper-specific), shown above the
   paper list.
+- **Multi-topic assignment** — a paper can belong to a primary topic and, when it
+  genuinely spans two areas, a secondary one; secondary memberships show an
+  *"Also in: …"* line, and the CSV export lists every assigned topic.
+- **Near-duplicate detection** — papers with near-identical titles (e.g. a
+  preprint and its camera-ready) are clustered with a dependency-free fuzzy match
+  and flagged with a *near-dup* badge naming the representative; the count of
+  groups appears in the summary and a `duplicate_of` column is added to the CSV.
 - A **keyword search** that filters the papers listed under each topic by their
   title or abstract — comma-separated keywords (each may contain spaces), matched
   with AND; topics with no match are hidden and matching ones auto-expand.

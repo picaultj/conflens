@@ -125,6 +125,10 @@ class AnalyzerUI:
                     value="llm",
                     label="Topic engine",
                 ).props("outlined dense").style("flex:1 1 150px;")
+            self.theme_definition = ui.input(
+                "Theme definition (optional)",
+                placeholder="Clarify what counts as this theme — what to include / exclude",
+            ).props("outlined dense").classes("w-full")
             with ui.row().classes("w-full items-center").style("gap:16px; flex-wrap:wrap;"):
                 self.llm_base_url = ui.input(
                     "LLM endpoint (LiteLLM / OpenAI-compatible)",
@@ -269,6 +273,7 @@ class AnalyzerUI:
             base_url=self.base_url.value.strip(),
             event=self.event.value.strip(),
             theme=self.theme.value.strip() or "Agentic AI",
+            theme_definition=(self.theme_definition.value or "").strip(),
             provider=self.provider.value,
             model=(self.model.value or "").strip(),
             llm_base_url=(self.llm_base_url.value or "").strip(),
@@ -356,6 +361,8 @@ class AnalyzerUI:
                     self._stat(str(result.scanned), "Papers scanned")
                     self._stat(str(len(result.relevant_papers)), f"Match “{result.theme}”")
                     self._stat(str(len(result.topics)), "Topics")
+                    if result.duplicate_groups:
+                        self._stat(str(result.duplicate_groups), "Near-duplicate groups")
                 with ui.row().style("gap:8px;"):
                     ui.button(
                         "PPTX", icon="slideshow", on_click=self._download_pptx
@@ -447,6 +454,8 @@ class AnalyzerUI:
             return
         self.topics_container.clear()
         by_id = {p.paper_id: p for p in result.relevant_papers}
+        all_by_id = {p.paper_id: p for p in result.papers}  # for duplicate-rep titles
+        topic_name = {t.topic_id: t.name for t in result.topics}
         filtering = bool(query.strip())
         shown_papers = 0
         shown_topics = 0
@@ -504,7 +513,15 @@ class AnalyzerUI:
                                 "font-size:.8rem; font-weight:600; margin-top:4px;"
                             )
                             for p in papers:
-                                self._render_paper(p)
+                                also_in = [
+                                    topic_name[tid]
+                                    for tid in p.topic_ids
+                                    if tid != t.topic_id and tid in topic_name
+                                ]
+                                dup_title = None
+                                if p.duplicate_of and p.duplicate_of in all_by_id:
+                                    dup_title = all_by_id[p.duplicate_of].title
+                                self._render_paper(p, also_in=also_in, dup_title=dup_title)
 
             if filtering and shown_topics == 0:
                 ui.label("No papers match those keywords in their abstract.").classes(
@@ -520,7 +537,7 @@ class AnalyzerUI:
             else:
                 self.filter_status.set_text("")
 
-    def _render_paper(self, p) -> None:
+    def _render_paper(self, p, also_in=None, dup_title=None) -> None:
         with ui.column().classes("w-full").style(
             f"gap:3px; padding:10px 0; border-top:1px solid {LINE};"
         ):
@@ -530,6 +547,10 @@ class AnalyzerUI:
                 else:
                     ui.label(p.title).style(f"color:{INK}; font-weight:600;")
                 with ui.row().style("gap:6px; flex-wrap:nowrap;"):
+                    if dup_title:
+                        ui.label("near-dup").classes("ca-badge").style(
+                            "background:#b7791f;"
+                        ).tooltip(f"Near-duplicate of: {dup_title}")
                     if p.confidence is not None:
                         ui.label(f"{p.confidence:.0%}").classes("ca-badge").style(
                             f"background:{MUTED};"
@@ -539,6 +560,10 @@ class AnalyzerUI:
             if p.authors:
                 authors = ", ".join(p.authors[:6]) + ("…" if len(p.authors) > 6 else "")
                 ui.label(authors).classes("ca-muted").style("font-size:.8rem;")
+            if also_in:
+                ui.label("Also in: " + ", ".join(also_in)).classes("ca-muted").style(
+                    "font-size:.78rem;"
+                )
             if p.abstract:
                 with ui.expansion("Abstract").classes("w-full").style("font-size:.85rem;"):
                     ui.label(p.abstract).style(f"color:{INK}; font-size:.85rem; line-height:1.5;")
@@ -593,16 +618,18 @@ class AnalyzerUI:
         buf = io.StringIO()
         writer = csv.writer(buf)
         writer.writerow(
-            ["paper_id", "title", "topic", "confidence", "authors", "pdf_url", "url"]
+            ["paper_id", "title", "topics", "confidence", "authors",
+             "duplicate_of", "pdf_url", "url"]
         )
         for p in self.result.relevant_papers:
             writer.writerow(
                 [
                     p.paper_id,
                     p.title,
-                    topics.get(p.topic_id, ""),
+                    "; ".join(topics.get(tid, "") for tid in p.topic_ids),
                     f"{p.confidence:.2f}" if p.confidence is not None else "",
                     "; ".join(p.authors),
+                    p.duplicate_of or "",
                     p.pdf_url,
                     p.url,
                 ]
