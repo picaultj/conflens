@@ -1,12 +1,19 @@
-name: CI
+name: Tests
 
+# pytest + package build on every pushed commit (any branch) and every pull
+# request. Concurrency keys on the branch name so a branch's push and
+# pull_request events collapse into a single run and stale runs are superseded.
 on:
   push:
-    branches: [main]
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
 jobs:
-  test:
+  pytest:
+    name: pytest + build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -18,9 +25,6 @@ jobs:
 
       - name: Sync dependencies (base + dev)
         run: uv sync
-
-      - name: Lint (ruff)
-        run: uv run ruff check .
 
       - name: Tests (pytest)
         run: uv run pytest -q

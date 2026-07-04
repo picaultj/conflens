@@ -1,6 +1,7 @@
 # ConfLens: a Conference Paper Analyzer
 
-[![CI](https://img.shields.io/github/actions/workflow/status/picaultj/conflens/ci.yml?branch=main&logo=github&label=CI)](https://github.com/picaultj/conflens/actions/workflows/ci.yml)
+[![Lint](https://img.shields.io/github/actions/workflow/status/picaultj/conflens/lint.yml?branch=main&logo=github&label=lint)](https://github.com/picaultj/conflens/actions/workflows/lint.yml)
+[![Tests](https://img.shields.io/github/actions/workflow/status/picaultj/conflens/test.yml?branch=main&logo=github&label=tests)](https://github.com/picaultj/conflens/actions/workflows/test.yml)
 [![Downloads](https://img.shields.io/github/downloads/picaultj/conflens/total?logo=github&label=downloads)](https://github.com/picaultj/conflens/releases)
 [![Release](https://img.shields.io/github/v/release/picaultj/conflens?logo=github&label=release&sort=semver)](https://github.com/picaultj/conflens/releases)
 [![Stars](https://img.shields.io/github/stars/picaultj/conflens?logo=github&style=flat)](https://github.com/picaultj/conflens/stargazers)
@@ -263,7 +264,21 @@ uv run ruff check .  # lint
 uv build             # build the wheel/sdist
 ```
 
-CI (GitHub Actions) runs ruff + pytest + build on every push and PR. The tests
-are network- and API-free (parsers run on HTML fixtures; the LLM stages use a
-fake client), so they're fast and deterministic.
+CI is GitHub Actions, one workflow per concern, each running on **every pushed
+commit** and every PR:
+
+- **`lint.yml`** — ruff on every commit.
+- **`test.yml`** — pytest + package build.
+- **`release.yml`** — version bump + tag on PR merge (see below).
+
+The tests are network- and API-free (parsers run on HTML fixtures; the LLM
+stages use a fake client), so they're fast and deterministic.
+
+### Releasing
+
+Releases are automated (`.github/workflows/release.yml`): when a PR is **merged
+into `main`**, the workflow bumps the version in `pyproject.toml`, commits it
+back to `main`, and creates a matching `vX.Y.Z` **tag**. The bump is a **patch**
+by default — add a **`minor`** or **`major`** label to the PR to bump those
+instead.
 
