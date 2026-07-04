@@ -1,0 +1,71 @@
+name: Release
+
+# When a pull request is merged into main, bump the version in pyproject.toml,
+# commit it back to main, and create a matching tag.
+#
+# Bump level is patch by default; add a "minor" or "major" label to the PR to
+# bump those instead. The version-bump commit and tag are pushed with the
+# built-in GITHUB_TOKEN, which by design does NOT re-trigger workflows — so this
+# never loops (the `[skip ci]` marker is belt-and-suspenders).
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    env:
+      BUMP: >-
+        ${{ contains(github.event.pull_request.labels.*.name, 'major') && 'major'
+        || contains(github.event.pull_request.labels.*.name, 'minor') && 'minor'
+        || 'patch' }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      PR_TITLE: ${{ github.event.pull_request.title }}
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump version and create tag
+        run: |
+          set -euo pipefail
+          CUR=$(grep -m1 -E '^version *= *"' pyproject.toml | sed -E 's/.*"([^"]+)".*/\1/')
+          IFS='.' read -r MA MI PA <<< "$CUR"
+          case "$BUMP" in
+            major) MA=$((MA + 1)); MI=0; PA=0 ;;
+            minor) MI=$((MI + 1)); PA=0 ;;
+            *)     PA=$((PA + 1)) ;;
+          esac
+          NEW="${MA}.${MI}.${PA}"
+          TAG="v${NEW}"
+          echo "PR #${PR_NUMBER} merged — bumping ${CUR} -> ${NEW} (${BUMP})"
+
+          if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+            echo "Tag ${TAG} already exists — nothing to do."
+            exit 0
+          fi
+
+          sed -i -E "s/^version *= *\"[0-9]+\.[0-9]+\.[0-9]+\"/version = \"${NEW}\"/" pyproject.toml
+          git add pyproject.toml
+          git commit -m "chore: release ${TAG} [skip ci]"
+          git tag -a "${TAG}" -m "Release ${TAG} (PR #${PR_NUMBER}: ${PR_TITLE})"
+          git push origin HEAD:main
+          git push origin "${TAG}"
+          echo "Released ${TAG}"

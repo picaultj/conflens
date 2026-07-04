@@ -97,3 +97,9 @@ regexes over heavyweight parsers, small focused modules).
 - Commit identity: `user.email = noreply@anthropic.com`, `user.name = Claude`.
 - `.env`, `.venv`, `__pycache__`, `~/.cache/...` and build artefacts are
   gitignored — never commit them.
+- **CI** is one workflow per concern under `.github/workflows/`: `lint.yml`
+  (ruff on every commit), `test.yml` (pytest + build), `release.yml`
+  (version bump + tag on PR merge). Keep lint and tests green.
+- **Releases are automated** (`.github/workflows/release.yml`): merging a PR into
+  `main` bumps the version and tags it. Don't bump `version` in `pyproject.toml`
+  by hand — control the bump with a `minor`/`major` PR label (default patch).
