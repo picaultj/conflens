@@ -84,6 +84,7 @@ def classify_papers(
     cache_dir: Optional[str] = None,
     cache_sig: str = "",
     force_refresh: bool = False,
+    cancel: Optional[Callable[[], None]] = None,
 ) -> list[Paper]:
     """Annotate every paper with relevance/confidence/reason in place.
 
@@ -133,6 +134,8 @@ def classify_papers(
                 pass
 
     for start in range(0, len(todo), _BATCH_SIZE):
+        if cancel:
+            cancel()
         batch = todo[start : start + _BATCH_SIZE]
         prompt = _batch_prompt(theme, batch, start)
         data = client.structured(_SYSTEM, prompt, _SCHEMA, max_tokens=4000, effort="low")

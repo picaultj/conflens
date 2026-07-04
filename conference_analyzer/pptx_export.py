@@ -41,7 +41,7 @@ def build_pptx(result: "AnalysisResult") -> bytes:
         from pptx.chart.data import CategoryChartData
         from pptx.dml.color import RGBColor
         from pptx.enum.chart import XL_CHART_TYPE
-        from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
+        from pptx.enum.text import MSO_ANCHOR
         from pptx.util import Inches, Pt
     except ImportError as e:  # pragma: no cover - optional dependency
         raise RuntimeError(

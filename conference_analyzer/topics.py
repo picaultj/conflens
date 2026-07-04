@@ -285,6 +285,7 @@ def summarize_topics(
     cache_dir: Optional[str] = None,
     cache_sig: str = "",
     force_refresh: bool = False,
+    cancel: Optional[Callable[[], None]] = None,
 ) -> None:
     """Fill each topic's ``description`` and ``findings`` in place.
 
@@ -311,6 +312,8 @@ def summarize_topics(
         progress(0, total)
 
     for i, topic in enumerate(topics):
+        if cancel:
+            cancel()
         sig = _topic_signature(topic)
         hit = cache.get(sig) if not force_refresh else None
         if hit:

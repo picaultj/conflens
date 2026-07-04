@@ -170,27 +170,7 @@ class AnthologyScraper:
                 pass  # corrupt/legacy cache — fall through and refetch
 
         page = self._get(url)
-        seen: set[str] = set()
-        papers: list[Paper] = []
-        for m in _PAPER_ANCHOR.finditer(page):
-            pid = m.group("id")
-            if pid in seen:
-                continue
-            # ``*.0`` entries are the proceedings front-matter, not real papers.
-            if pid.rsplit(".", 1)[-1] == "0" and not include_frontmatter:
-                continue
-            title = _clean(m.group("title"))
-            if not title:
-                continue
-            seen.add(pid)
-            papers.append(
-                Paper(
-                    paper_id=pid,
-                    title=title,
-                    url=f"{self.base_url}/{pid}/",
-                    pdf_url=f"{self.base_url}/{pid}.pdf",
-                )
-            )
+        papers = self.parse_listing(page, include_frontmatter=include_frontmatter)
         try:
             with open(cache, "w", encoding="utf-8") as fh:
                 json.dump(
@@ -212,9 +192,41 @@ class AnthologyScraper:
             pass
         return papers
 
+    def parse_listing(self, page: str, include_frontmatter: bool = False) -> list[Paper]:
+        """Parse an event listing page's HTML into papers (no network)."""
+        seen: set[str] = set()
+        papers: list[Paper] = []
+        for m in _PAPER_ANCHOR.finditer(page):
+            pid = m.group("id")
+            if pid in seen:
+                continue
+            # ``*.0`` entries are the proceedings front-matter, not real papers.
+            if pid.rsplit(".", 1)[-1] == "0" and not include_frontmatter:
+                continue
+            title = _clean(m.group("title"))
+            if not title:
+                continue
+            seen.add(pid)
+            papers.append(
+                Paper(
+                    paper_id=pid,
+                    title=title,
+                    url=f"{self.base_url}/{pid}/",
+                    pdf_url=f"{self.base_url}/{pid}.pdf",
+                )
+            )
+        return papers
+
     # ------------------------------------------------------------------ #
     # Abstracts / metadata
     # ------------------------------------------------------------------ #
+    @staticmethod
+    def parse_detail(page: str) -> tuple[str, list[str]]:
+        """Parse a paper page's HTML into ``(abstract, authors)`` (no network)."""
+        m = _ABSTRACT.search(page)
+        abstract = _clean(m.group("abs")) if m else ""
+        return abstract, _extract_authors(page)
+
     def _abstract_cache_path(self, pid: str) -> str:
         safe = pid.replace("/", "_")
         return os.path.join(self.cache_dir, f"{safe}.json")
@@ -234,10 +246,7 @@ class AnthologyScraper:
             page = self._get(paper.url)
         except RuntimeError:
             return paper
-        m = _ABSTRACT.search(page)
-        if m:
-            paper.abstract = _clean(m.group("abs"))
-        paper.authors = _extract_authors(page)
+        paper.abstract, paper.authors = self.parse_detail(page)
         try:
             with open(cache, "w", encoding="utf-8") as fh:
                 json.dump({"abstract": paper.abstract, "authors": paper.authors}, fh)
