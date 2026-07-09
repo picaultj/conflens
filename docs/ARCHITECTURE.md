@@ -38,7 +38,7 @@ flowchart TB
     UI --> EXP["exports<br/>PPTX · BibTeX · JSON · CSV"]
     RES --> EXP
 
-    ACL -. cache .-> CACHE[("cache.py<br/>~/.cache/conference_analyzer")]
+    ACL -. cache .-> CACHE[("cache.py<br/>~/.cache/conflens")]
     IJ -. cache .-> CACHE
     OR -. cache .-> CACHE
     CLS -. cache .-> CACHE
@@ -104,20 +104,20 @@ sequenceDiagram
 
 ## Modules
 
-| Module | Responsibility |
-|--------|----------------|
-| `cli.py` | Console entry point (`conference-analyzer`); `--clear-cache`, `--host/--port`; loads `.env`. |
+| Module | Responsibility                                                                                                                                                                                                    |
+|--------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `cli.py` | Console entry point (`conflens`); `--clear-cache`, `--host/--port`; loads `.env`.                                                                                                                                 |
 | `app.py` | NiceGUI UI: configuration form, input validation, progress, and the interactive results view (ECharts chart, per-topic findings + papers, live re-threshold / search / sort / facet, save + load a run), exports. |
-| `pipeline.py` | `AnalysisConfig` + `run_analysis()` orchestrating the stages with a `Progress` object (supports cooperative cancel). |
-| `sources.py` | Source interface + registry + `make_source()`; `IJCAISource`, `OpenReviewSource`, shared `_robust_get`. |
-| `scraper.py` | `AnthologyScraper` (ACL Anthology adapter, also serving EMNLP / NAACL) + shared HTML helpers. |
-| `dedup.py` | `annotate_duplicates()` — dependency-free near-duplicate-title clustering (union-find + `difflib`). |
-| `classifier.py` | Batched, structured-output relevance classification with on-disk cache. |
-| `topics.py` | Topic modelling (LLM / BERTopic, multi-topic assignment) **and** per-topic synthesis (`summarize_topics`). |
-| `llm.py` | Provider abstraction (`LLMClient`) + `make_client()` for Anthropic / OpenAI / LiteLLM; transient-error retry. |
-| `pptx_export.py`, `bibtex.py` | Deterministic PowerPoint deck (`python-pptx`) and BibTeX export. |
-| `cache.py` | Cache location + `clear_cache()`. |
-| `models.py` | `Paper`, `Topic`, `AnalysisResult` dataclasses (+ `to_dict`/`from_dict` for save/load). |
+| `pipeline.py` | `AnalysisConfig` + `run_analysis()` orchestrating the stages with a `Progress` object (supports cooperative cancel).                                                                                              |
+| `sources.py` | Source interface + registry + `make_source()`; `IJCAISource`, `OpenReviewSource`, shared `_robust_get`.                                                                                                           |
+| `scraper.py` | `AnthologyScraper` (ACL Anthology adapter, also serving EMNLP / NAACL) + shared HTML helpers.                                                                                                                     |
+| `dedup.py` | `annotate_duplicates()` — dependency-free near-duplicate-title clustering (union-find + `difflib`).                                                                                                               |
+| `classifier.py` | Batched, structured-output relevance classification with on-disk cache.                                                                                                                                           |
+| `topics.py` | Topic modelling (LLM / BERTopic, multi-topic assignment) **and** per-topic synthesis (`summarize_topics`).                                                                                                        |
+| `llm.py` | Provider abstraction (`LLMClient`) + `make_client()` for Anthropic / OpenAI / LiteLLM; transient-error retry.                                                                                                     |
+| `pptx_export.py`, `bibtex.py` | Deterministic PowerPoint deck (`python-pptx`) and BibTeX export.                                                                                                                                                  |
+| `cache.py` | Cache location + `clear_cache()`.                                                                                                                                                                                 |
+| `models.py` | `Paper`, `Topic`, `AnalysisResult` dataclasses (+ `to_dict`/`from_dict` for save/load).                                                                                                                           |
 
 ## Data model
 
@@ -184,7 +184,7 @@ chart and papers; the grouped and flattened layouts share one per-paper renderer
 
 ## Caching
 
-All caches live under `~/.cache/conference_analyzer` (override with
+All caches live under `~/.cache/conflens` (override with
 `--cache-dir`; wipe with `--clear-cache` or the UI's *Refresh from source*).
 
 | Cache | Key | Invalidated by |

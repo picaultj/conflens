@@ -151,7 +151,7 @@ flowchart LR
     CLS --> LLM["llm.py<br/>Anthropic · OpenAI · LiteLLM"]
     TOP --> LLM
     PIPE --> RES["AnalysisResult"] --> EXP["PPTX · BibTeX · JSON · CSV"]
-    SRC -. cache .-> CACHE[("~/.cache/conference_analyzer")]
+    SRC -. cache .-> CACHE[("~/.cache/conflens")]
     CLS -. cache .-> CACHE
     TOP -. cache .-> CACHE
 ```
@@ -163,15 +163,15 @@ data-model and caching diagrams, plus extension points.
 
 | Stage | Module | Notes |
 |-------|--------|-------|
-| Sources | `conference_analyzer/sources.py` | Pluggable adapters (ACL Anthology, EMNLP, NAACL, IJCAI, OpenReview) behind one interface; registry + factory. |
-| Scrape listing | `conference_analyzer/scraper.py` | ACL Anthology adapter: parses the event page; abstracts + authors fetched per paper and cached. |
-| Near-duplicates | `conference_analyzer/dedup.py` | Flags near-identical titles (union-find + `difflib`); dependency-free. |
-| Classify | `conference_analyzer/classifier.py` | Batched, structured-output calls; relevance + confidence + a one-line reason per paper (cached). |
-| Topic model | `conference_analyzer/topics.py` | `llm` backend derives a taxonomy and assigns papers (primary + optional secondary topic); `bertopic` backend optional. |
-| Summarize | `conference_analyzer/topics.py` | Per-topic description + 5–10 common findings across the topic's papers (cached). |
-| LLM providers | `conference_analyzer/llm.py` | One `structured()` interface over Anthropic / OpenAI / LiteLLM. |
-| Orchestrate | `conference_analyzer/pipeline.py` | Runs the stages with progress reporting and cooperative cancel. |
-| UI / exports | `conference_analyzer/app.py`, `pptx_export.py`, `bibtex.py` | NiceGUI; ECharts chart; interactive results view; PPTX / BibTeX / JSON / CSV export. |
+| Sources | `conflens/sources.py` | Pluggable adapters (ACL Anthology, EMNLP, NAACL, IJCAI, OpenReview) behind one interface; registry + factory. |
+| Scrape listing | `conflens/scraper.py` | ACL Anthology adapter: parses the event page; abstracts + authors fetched per paper and cached. |
+| Near-duplicates | `conflens/dedup.py` | Flags near-identical titles (union-find + `difflib`); dependency-free. |
+| Classify | `conflens/classifier.py` | Batched, structured-output calls; relevance + confidence + a one-line reason per paper (cached). |
+| Topic model | `conflens/topics.py` | `llm` backend derives a taxonomy and assigns papers (primary + optional secondary topic); `bertopic` backend optional. |
+| Summarize | `conflens/topics.py` | Per-topic description + common findings across the topic's papers (cached). |
+| LLM providers | `conflens/llm.py` | One `structured()` interface over Anthropic / OpenAI / LiteLLM. |
+| Orchestrate | `conflens/pipeline.py` | Runs the stages with progress reporting and cooperative cancel. |
+| UI / exports | `conflens/app.py`, `pptx_export.py`, `bibtex.py` | NiceGUI; ECharts chart; interactive results view; PPTX / BibTeX / JSON / CSV export. |
 
 ## Configuration (in the UI)
 
@@ -245,7 +245,7 @@ data-model and caching diagrams, plus extension points.
 
 ## Caching
 
-Everything expensive is cached on disk under `~/.cache/conference_analyzer`:
+Everything expensive is cached on disk under `~/.cache/conflens`:
 
 - the **event listing** is cached per event/page URL,
 - each paper's **abstract + authors** is cached per paper id, and

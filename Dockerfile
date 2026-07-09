@@ -3,9 +3,9 @@
 # uv-managed image pinned to the project's Python (3.13).
 FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim
 
-# Which optional providers to install (openai + litellm by default).
-# Override at build time, e.g. --build-arg EXTRAS="--extra all --extra bertopic".
-ARG EXTRAS="--extra all"
+# Which optional extras to install (e.g. bertopic).
+# Override at build time, e.g. --build-arg EXTRAS="--extra bertopic".
+ARG EXTRAS=""
 
 ENV PYTHONUNBUFFERED=1 \
     UV_COMPILE_BYTECODE=1 \
