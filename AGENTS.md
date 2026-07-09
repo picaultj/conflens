@@ -82,7 +82,7 @@ regexes over heavyweight parsers, small focused modules).
 
 ## LLM / model notes
 
-- Default model is `claude-opus-4-8`; structured output uses
+- Default model is `gpt-5.4` (OpenAI); structured output uses
   `output_config.format` (Anthropic) or JSON-object mode + schema-in-prompt
   (OpenAI/LiteLLM).
 - The `effort` parameter is only sent to models that support it (e.g. **not**

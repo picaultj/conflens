@@ -1,13 +1,16 @@
 services:
   app:
     build: .
-    image: conference-analyzer
+    image: conflens
     ports:
       - "8080:8080"
     # API keys / endpoints — copy .env.example to .env first.
     env_file:
       - path: .env
         required: false
+    environment:
+      - NO_PROXY=$NO_PROXY # to avoid communication issues
+      - no_proxy=$no_proxy # to avoid communication issues
     volumes:
       # Persist scraped listings, abstracts and classification results.
       - cache:/home/app/.cache/conference_analyzer

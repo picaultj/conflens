@@ -30,14 +30,14 @@ PROVIDERS = ["anthropic", "openai", "litellm"]
 
 DEFAULT_MODELS = {
     "anthropic": "claude-opus-4-8",
-    "openai": "gpt-4o-mini",
-    "litellm": "",  # user supplies, e.g. "openai/gpt-4o" or a proxy model name
+    "openai": "gpt-5.4",
+    "litellm": "gpt-5.4",  # user supplies, e.g. "openai/gpt-4o" or a proxy model name
 }
 
 MODEL_SUGGESTIONS = {
     "anthropic": ["claude-opus-4-8", "claude-sonnet-4-6", "claude-haiku-4-5"],
-    "openai": ["gpt-4o-mini", "gpt-4o", "gpt-4.1-mini", "o4-mini"],
-    "litellm": ["openai/gpt-4o", "anthropic/claude-sonnet-4-6", "gpt-4o-mini"],
+    "openai": ["gpt-5.4", "gpt-4o-mini", "gpt-4o", "gpt-4.1-mini", "o4-mini"],
+    "litellm": ["gpt-5.4","gpt-5.5","gpt-5.1"],
 }
 
 # Anthropic: the `effort` parameter is rejected (400) on models that don't

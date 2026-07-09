@@ -22,6 +22,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 # 2) Copy the project and install it (the conference-analyzer entry point).
 COPY . /app
+COPY --link .env* /app/
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen ${EXTRAS}
 

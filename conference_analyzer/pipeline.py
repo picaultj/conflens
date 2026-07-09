@@ -46,8 +46,8 @@ class AnalysisConfig:
     event: str = "acl-2026"
     theme: str = "Agentic AI"
     theme_definition: str = ""     # optional clarification of what the theme includes/excludes
-    provider: str = "anthropic"    # "anthropic" | "openai" | "litellm"
-    model: str = "claude-opus-4-8"
+    provider: str = "openai"    # "anthropic" | "openai" | "litellm"
+    model: str = "gpt-5.4"
     llm_base_url: str = ""         # custom endpoint (LiteLLM / OpenAI-compatible)
     api_key: str = ""              # overrides the provider's env var if set
     max_papers: int = 150
