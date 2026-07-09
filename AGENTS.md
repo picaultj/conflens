@@ -19,7 +19,7 @@ uv sync                        # base install (Anthropic, OpenAI, LiteLLM)
 uv sync --extra bertopic       # + BERTopic topic backend (heavy)
 
 cp .env.example .env           # add provider key(s); loaded automatically
-uv run conference-analyzer     # serve on http://localhost:8080
+uv run conference-analyzer     # serve on http://localhost:6868
 uv run conference-analyzer --clear-cache   # wipe the on-disk cache
 ```
 

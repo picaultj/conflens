@@ -3,7 +3,7 @@ services:
     build: .
     image: conflens
     ports:
-      - "8080:8080"
+      - "6868:6868"
     # API keys / endpoints — copy .env.example to .env first.
     env_file:
       - path: .env
@@ -16,7 +16,7 @@ services:
       - cache:/home/app/.cache/conflens
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:6868/')"]
       interval: 30s
       timeout: 5s
       retries: 3

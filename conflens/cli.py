@@ -40,7 +40,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help=f"cache directory (default: {default_cache_dir()})",
     )
     parser.add_argument("--host", default="0.0.0.0", help="host to bind (default: 0.0.0.0)")
-    parser.add_argument("--port", type=int, default=8080, help="port to bind (default: 8080)")
+    parser.add_argument("--port", type=int, default=6868, help="port to bind (default: 6868)")
     return parser.parse_args(argv)
 
 

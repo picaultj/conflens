@@ -1,7 +1,7 @@
 """Convenience launcher: ``uv run python run.py`` (or ``python run.py``).
 
 Equivalent to the installed ``conference-analyzer`` console script.
-Open http://localhost:8080 once it is running.
+Open http://localhost:6868 once it is running.
 """
 
 from conflens.cli import main

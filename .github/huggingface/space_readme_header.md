@@ -4,7 +4,7 @@ emoji: 🔎
 colorFrom: blue
 colorTo: indigo
 sdk: docker
-app_port: 8080
+app_port: 6868
 pinned: false
 license: mpl-2.0
 short_description: Browse, theme-classify and topic-model conference papers

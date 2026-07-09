@@ -55,7 +55,7 @@ uv run conference-analyzer                # or: uv run python run.py
 Keys are read from `.env` (loaded automatically) or the process environment;
 you can also paste a key into the app's **API key** field at runtime.
 
-Then open <http://localhost:8080>.
+Then open <http://localhost:6868>.
 
 `uv` provisions the right Python automatically (pinned to 3.13 via
 `.python-version`); you don't need to install it yourself.
@@ -64,7 +64,7 @@ Then open <http://localhost:8080>.
 
 ```bash
 cp .env.example .env          # fill in your provider key(s)
-docker compose up --build     # → http://localhost:8080
+docker compose up --build     # → http://localhost:6868
 ```
 
 The image is built with `uv` on Python 3.13 and includes all LLM
@@ -79,7 +79,7 @@ Plain Docker (no compose) works too:
 
 ```bash
 docker build -t conference-analyzer .
-docker run --rm -p 8080:8080 --env-file .env \
+docker run --rm -p 6868:6868 --env-file .env \
   -v conf-cache:/home/app/.cache/conflens conference-analyzer
 ```
 
@@ -89,7 +89,7 @@ To also build the optional BERTopic backend into the image:
 ### Deploy to Hugging Face Spaces
 
 ConfLens runs on Hugging Face as a **Docker Space** (it builds the `Dockerfile`
-above, which serves on `0.0.0.0:8080`). A GitHub Action mirrors `main` to the
+above, which serves on `0.0.0.0:6868`). A GitHub Action mirrors `main` to the
 Space on every push, so it stays in sync automatically.
 
 **One-time setup:**
@@ -109,7 +109,7 @@ Space on every push, so it stays in sync automatically.
 
 That's it — push to `main` (or run the **Sync to Hugging Face Space** workflow
 manually) and the Space rebuilds. The Space metadata (`sdk: docker`,
-`app_port: 8080`, …) lives in
+`app_port: 6868`, …) lives in
 [`.github/huggingface/space_readme_header.md`](.github/huggingface/space_readme_header.md);
 the action prepends it to the README it pushes, so the GitHub README stays clean.
 

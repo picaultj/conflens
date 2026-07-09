@@ -35,9 +35,9 @@ RUN useradd --create-home --uid 1000 app \
 USER app
 ENV HOME=/home/app
 
-EXPOSE 8080
+EXPOSE 6868
 
 # ENTRYPOINT + CMD: default launches the server; `docker run <image> --clear-cache`
 # (or any other flags) is appended to `conference-analyzer`.
 ENTRYPOINT ["conference-analyzer"]
-CMD ["--host", "0.0.0.0", "--port", "8080"]
+CMD ["--host", "0.0.0.0", "--port", "6868"]
