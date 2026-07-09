@@ -15,8 +15,7 @@ save/load a run). Python 3.13, managed with **uv**.
 ## Setup & run
 
 ```bash
-uv sync                        # base install (Anthropic provider)
-uv sync --extra all            # + OpenAI and LiteLLM providers
+uv sync                        # base install (Anthropic, OpenAI, LiteLLM)
 uv sync --extra bertopic       # + BERTopic topic backend (heavy)
 
 cp .env.example .env           # add provider key(s); loaded automatically

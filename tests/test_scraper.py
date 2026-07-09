@@ -1,4 +1,4 @@
-from conference_analyzer.scraper import AnthologyScraper
+from conflens.scraper import AnthologyScraper
 
 # Minified, unquoted-attribute HTML in the ACL Anthology's style.
 LISTING = (

@@ -1,6 +1,6 @@
 import pytest
 
-from conference_analyzer import llm
+from conflens import llm
 
 
 def test_extract_json_plain():

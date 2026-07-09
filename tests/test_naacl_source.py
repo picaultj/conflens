@@ -1,5 +1,5 @@
-from conference_analyzer.scraper import AnthologyScraper
-from conference_analyzer.sources import SOURCES, make_source
+from conflens.scraper import AnthologyScraper
+from conflens.sources import SOURCES, make_source
 
 # ACL-Anthology-style listing, but with NAACL paper ids.
 LISTING = (

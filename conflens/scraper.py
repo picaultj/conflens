@@ -86,7 +86,7 @@ class AnthologyScraper:
         self.timeout = timeout
         self.max_workers = max_workers
         self.cache_dir = cache_dir or os.path.join(
-            os.path.expanduser("~"), ".cache", "conference_analyzer"
+            os.path.expanduser("~"), ".cache", "conflens"
         )
         os.makedirs(self.cache_dir, exist_ok=True)
 

@@ -30,7 +30,7 @@ ENV PATH="/app/.venv/bin:${PATH}"
 
 # Run as a non-root user; keep the on-disk cache on a persistable path.
 RUN useradd --create-home --uid 1000 app \
-    && mkdir -p /home/app/.cache/conference_analyzer \
+    && mkdir -p /home/app/.cache/conflens \
     && chown -R app:app /app /home/app
 USER app
 ENV HOME=/home/app

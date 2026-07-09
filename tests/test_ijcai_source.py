@@ -1,4 +1,4 @@
-from conference_analyzer.sources import IJCAISource
+from conflens.sources import IJCAISource
 
 # Two IJCAI items: one main-track (#29), one special-track (#AI4G6).
 PAGE = (

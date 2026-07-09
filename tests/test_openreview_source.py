@@ -1,4 +1,4 @@
-from conference_analyzer.sources import OpenReviewSource, _cv
+from conflens.sources import OpenReviewSource, _cv
 
 # API v2 note: content values are wrapped in {"value": …}; PDF is a relative path.
 NOTE_V2 = {

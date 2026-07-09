@@ -12,7 +12,7 @@ from typing import Optional
 
 
 def default_cache_dir() -> str:
-    return os.path.join(os.path.expanduser("~"), ".cache", "conference_analyzer")
+    return os.path.join(os.path.expanduser("~"), ".cache", "conflens")
 
 
 def clear_cache(cache_dir: Optional[str] = None) -> tuple[str, int]:

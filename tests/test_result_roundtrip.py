@@ -1,4 +1,4 @@
-from conference_analyzer.models import AnalysisResult, Paper, Topic
+from conflens.models import AnalysisResult, Paper, Topic
 
 
 def _result() -> AnalysisResult:

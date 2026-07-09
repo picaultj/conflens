@@ -1,5 +1,5 @@
-from conference_analyzer.dedup import _normalise, annotate_duplicates
-from conference_analyzer.models import Paper
+from conflens.dedup import _normalise, annotate_duplicates
+from conflens.models import Paper
 
 
 def _p(pid, title):

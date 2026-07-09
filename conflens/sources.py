@@ -116,7 +116,7 @@ class IJCAISource:
         self.base_url = (base_url or "https://2026.ijcai.org").rstrip("/")
         self.timeout = timeout
         self.cache_dir = cache_dir or os.path.join(
-            os.path.expanduser("~"), ".cache", "conference_analyzer"
+            os.path.expanduser("~"), ".cache", "conflens"
         )
         os.makedirs(self.cache_dir, exist_ok=True)
 
@@ -236,7 +236,7 @@ class OpenReviewSource:
         self.base_url = (base_url or "https://api2.openreview.net").rstrip("/")
         self.timeout = timeout
         self.cache_dir = cache_dir or os.path.join(
-            os.path.expanduser("~"), ".cache", "conference_analyzer"
+            os.path.expanduser("~"), ".cache", "conflens"
         )
         os.makedirs(self.cache_dir, exist_ok=True)
         self._tok: Optional[str] = None  # None = not yet resolved; "" = anonymous

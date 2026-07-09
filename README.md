@@ -47,7 +47,7 @@ A desktop-style web app (built with [NiceGUI](https://nicegui.io)) that:
 Requires Python 3.13+ and [uv](https://docs.astral.sh/uv/).
 
 ```bash
-uv sync                                   # Claude/Anthropic works out of the box
+uv sync                                   # Claude, OpenAI, LiteLLM work out of the box
 cp .env.example .env                       # then fill in your provider key(s)
 uv run conference-analyzer                # or: uv run python run.py
 ```
@@ -67,7 +67,7 @@ cp .env.example .env          # fill in your provider key(s)
 docker compose up --build     # → http://localhost:8080
 ```
 
-The image is built with `uv` on Python 3.13 and includes the OpenAI + LiteLLM
+The image is built with `uv` on Python 3.13 and includes all LLM
 providers. A named volume persists the cache (scrapes + classifications) across
 restarts. To clear the cache in a container:
 
@@ -80,11 +80,11 @@ Plain Docker (no compose) works too:
 ```bash
 docker build -t conference-analyzer .
 docker run --rm -p 8080:8080 --env-file .env \
-  -v conf-cache:/home/app/.cache/conference_analyzer conference-analyzer
+  -v conf-cache:/home/app/.cache/conflens conference-analyzer
 ```
 
 To also build the optional BERTopic backend into the image:
-`docker build --build-arg EXTRAS="--extra all --extra bertopic" -t conference-analyzer .`
+`docker build --build-arg EXTRAS="--extra bertopic" -t conference-analyzer .`
 
 ### Deploy to Hugging Face Spaces
 
@@ -121,13 +121,13 @@ the action prepends it to the README it pushes, so the GitHub README stays clean
 
 The classifier and topic engine work with three providers, chosen in the UI:
 
-| Provider | Install | API key (env var or the in-app field) | Notes |
-|----------|---------|----------------------------------------|-------|
-| **Anthropic** (default) | included | `ANTHROPIC_API_KEY` | Claude models, native structured output |
-| **OpenAI** | `uv sync --extra openai` | `OPENAI_API_KEY` | OpenAI or any OpenAI-compatible base URL |
-| **LiteLLM** | `uv sync --extra litellm` | `LITELLM_API_KEY` / `OPENAI_API_KEY` | point **LLM endpoint** at your own LiteLLM URL |
+| Provider | API key (env var or the in-app field) | Notes |
+|----------|----------------------------------------|-------|
+| **Anthropic** (default) | `ANTHROPIC_API_KEY` | Claude models, native structured output |
+| **OpenAI** | `OPENAI_API_KEY` | OpenAI or any OpenAI-compatible base URL |
+| **LiteLLM** | `LITELLM_API_KEY` / `OPENAI_API_KEY` | point **LLM endpoint** at your own LiteLLM URL |
 
-Install both extra providers with `uv sync --extra all`. In the app, pick the
+In the app, pick the
 **LLM provider**, set the **Model**, and (for LiteLLM / OpenAI-compatible
 servers) the **LLM endpoint**. An **API key** field overrides the env var when
 set — handy for a self-hosted endpoint.
@@ -265,7 +265,7 @@ rebuild from scratch.
 To wipe the cache from the command line:
 
 ```bash
-uv run conference-analyzer --clear-cache          # default ~/.cache/conference_analyzer
+uv run conference-analyzer --clear-cache          # default ~/.cache/conflens
 uv run conference-analyzer --clear-cache --cache-dir /path/to/cache
 ```
 

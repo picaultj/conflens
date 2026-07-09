@@ -2,9 +2,9 @@ import re
 
 import pytest
 
-from conference_analyzer import classifier, topics
-from conference_analyzer.models import Paper
-from conference_analyzer.pipeline import AnalysisCancelled
+from conflens import classifier, topics
+from conflens.models import Paper
+from conflens.pipeline import AnalysisCancelled
 
 
 class FakeClient:

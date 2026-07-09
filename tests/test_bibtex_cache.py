@@ -1,6 +1,6 @@
-from conference_analyzer.bibtex import build_bibtex
-from conference_analyzer.cache import clear_cache
-from conference_analyzer.models import AnalysisResult, Paper
+from conflens.bibtex import build_bibtex
+from conflens.cache import clear_cache
+from conflens.models import AnalysisResult, Paper
 
 
 def test_build_bibtex_entries_and_keys():

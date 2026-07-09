@@ -1,5 +1,5 @@
-from conference_analyzer.app import AnalyzerUI
-from conference_analyzer.models import Paper
+from conflens.app import AnalyzerUI
+from conflens.models import Paper
 
 
 def _p(title="Agentic Planning with Tools", abstract="A study of retrieval methods."):

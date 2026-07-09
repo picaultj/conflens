@@ -13,7 +13,7 @@ services:
       - no_proxy=$no_proxy # to avoid communication issues
     volumes:
       # Persist scraped listings, abstracts and classification results.
-      - cache:/home/app/.cache/conference_analyzer
+      - cache:/home/app/.cache/conflens
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/')"]
