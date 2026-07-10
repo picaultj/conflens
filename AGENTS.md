@@ -94,7 +94,11 @@ regexes over heavyweight parsers, small focused modules).
 
 - **Do not commit to `main` directly.** Create a feature branch per change and
   open a PR into `main`.
-- Commit identity: `user.email = noreply@anthropic.com`, `user.name = Claude`.
+- **No AI-assistant / Claude Code attribution** anywhere — no `Co-Authored-By`,
+  `Claude-Session`, `🤖 Generated with …`, or `claude.ai/code` in commit
+  messages or PR descriptions, and don't attribute commit authorship to an
+  assistant. See [CLAUDE.md](CLAUDE.md). (The Anthropic *LLM provider* stays —
+  it's a feature.)
 - `.env`, `.venv`, `__pycache__`, `~/.cache/...` and build artefacts are
   gitignored — never commit them.
 - **CI** is one workflow per concern under `.github/workflows/`: `lint.yml`
