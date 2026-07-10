@@ -21,6 +21,10 @@ Sources shipping today:
 * **pscc** — Power Systems Computation Conference; a per-year HTML fragment from
   the papers-repository endpoint gives titles, authors and PDF links (abstracts
   aren't published on the site, so classification is title-based).
+* **isgteurope** — IEEE PES ISGT Europe, via the public DBLP search API (many
+  IEEE-Xplore-only venues are indexed there). Titles, authors and a DOI link per
+  paper; no abstracts, so classification is title-based. The generic
+  :class:`DBLPSource` behind it works for any DBLP-indexed conference.
 
 Adding another conference is a matter of writing one more adapter and
 registering it in :data:`SOURCES`.
@@ -81,7 +85,8 @@ def _robust_get(url: str, timeout: int = 120, headers: Optional[dict] = None) ->
             if e.code not in _RETRY_STATUS:
                 raise RuntimeError(f"Failed to fetch {url}: HTTP {e.code} {e.reason}") from e
             time.sleep(1.5 * (attempt + 1))
-        except (urllib.error.URLError, TimeoutError) as e:
+        except (urllib.error.URLError, TimeoutError, ConnectionError) as e:
+            # ConnectionError covers a peer reset mid-response (e.g. rate-limiting).
             last_err = e
             time.sleep(1.5 * (attempt + 1))
     if partial_best:
@@ -557,6 +562,165 @@ class PSCCSource:
 
 
 # ---------------------------------------------------------------------------
+# DBLP source (open metadata index — e.g. IEEE PES ISGT Europe)
+# ---------------------------------------------------------------------------
+# DBLP indexes many conferences that are otherwise only on IEEE Xplore. Its
+# public search API returns, per proceedings, each paper's title, authors and a
+# link (usually a DOI) — but no abstract, so classification is title-based.
+_DBLP_DISAMBIG = re.compile(r"\s+\d{4}$")   # DBLP appends "0001"-style suffixes
+_DBLP_TRAIL_DOT = re.compile(r"\.\s*$")
+
+
+class DBLPSource:
+    """Fetch a conference edition's papers from the public DBLP search API.
+
+    ``target`` is a ``"venue year"`` pair (e.g. ``"isgteurope 2024"``), a DBLP
+    proceedings key (``conf/isgteurope/isgteurope2024``) or a DBLP URL. Only
+    titles, authors and a link (usually the DOI) are available — abstracts are
+    not, so downstream classification is title-based.
+    """
+
+    name = "dblp"
+    _PAGE = 100  # DBLP's public search API caps hits-per-request at 100
+
+    def __init__(
+        self,
+        base_url: str = "https://dblp.org",
+        cache_dir: Optional[str] = None,
+        timeout: int = 120,
+    ) -> None:
+        self.base_url = (base_url or "https://dblp.org").rstrip("/")
+        self.timeout = timeout
+        self.cache_dir = cache_dir or os.path.join(
+            os.path.expanduser("~"), ".cache", "conflens"
+        )
+        os.makedirs(self.cache_dir, exist_ok=True)
+
+    @staticmethod
+    def _proc_key(target: str) -> str:
+        """Normalise ``target`` to a DBLP proceedings key like ``conf/x/x2024``."""
+        t = (target or "").strip()
+        m = re.search(r"(conf/[^\s?#]+?)(?:\.html|\.bht)?(?:[?#].*)?$", t)
+        if m:
+            return m.group(1)
+        parts = t.split()
+        venue = parts[0].strip("/") if parts else ""
+        year = ""
+        for p in parts[1:]:
+            ym = re.search(r"(19|20)\d{2}", p)
+            if ym:
+                year = ym.group(0)
+                break
+        return f"conf/{venue}/{venue}{year}"
+
+    def resolve_url(self, target: str) -> str:
+        return f"{self.base_url}/db/{self._proc_key(target)}.html"
+
+    def _cache_path(self, key: str) -> str:
+        digest = hashlib.sha1(key.encode("utf-8")).hexdigest()[:16]
+        return os.path.join(self.cache_dir, f"dblp_{digest}.json")
+
+    def list_papers(self, target: str, force_refresh: bool = False) -> list[Paper]:
+        key = self._proc_key(target)
+        cache = self._cache_path(key)
+        if not force_refresh and os.path.exists(cache):
+            try:
+                with open(cache, "r", encoding="utf-8") as fh:
+                    data = json.load(fh)
+                return [Paper(**p) for p in data.get("papers", [])]
+            except (OSError, json.JSONDecodeError, TypeError):
+                pass
+
+        hits = self._fetch_hits(key)
+        papers = self.parse_hits(hits)
+        try:
+            with open(cache, "w", encoding="utf-8") as fh:
+                json.dump({"key": key, "papers": [p.to_dict() for p in papers]}, fh)
+        except OSError:
+            pass
+        return papers
+
+    def _fetch_hits(self, proc_key: str) -> list[dict]:
+        """Page through every DBLP record whose TOC is this proceedings."""
+        toc = f"db/{proc_key}.bht"
+        hits: list[dict] = []
+        first = 0
+        while True:
+            if first:  # be polite to DBLP between pages to avoid throttling
+                time.sleep(0.7)
+            q = urllib.parse.urlencode(
+                {"q": f"toc:{toc}:", "format": "json", "h": self._PAGE, "f": first, "c": 0}
+            )
+            raw = _robust_get(
+                f"{self.base_url}/search/publ/api?{q}",
+                self.timeout,
+                headers={"User-Agent": _BROWSER_UA, "Accept": "application/json"},
+            )
+            try:
+                result = json.loads(raw).get("result", {})
+            except json.JSONDecodeError:
+                break
+            batch = result.get("hits", {}).get("hit", []) or []
+            hits.extend(batch)
+            total = int(result.get("hits", {}).get("@total", len(hits)) or 0)
+            first += self._PAGE
+            if first >= total or not batch:
+                break
+        return hits
+
+    def parse_hits(self, hits: list[dict]) -> list[Paper]:
+        """Turn DBLP search hits into papers (no network)."""
+        papers: list[Paper] = []
+        seen: set[str] = set()
+        for hit in hits:
+            info = hit.get("info", {}) or {}
+            title = _DBLP_TRAIL_DOT.sub("", _clean(str(info.get("title", "") or "")))
+            if not title:
+                continue
+            key = info.get("key") or hit.get("@id") or f"{len(papers) + 1}"
+            paper_id = "dblp-" + str(key).replace("/", "-")
+            if paper_id in seen:
+                continue
+            seen.add(paper_id)
+
+            raw_authors = (info.get("authors", {}) or {}).get("author", [])
+            if isinstance(raw_authors, dict):
+                raw_authors = [raw_authors]
+            authors = []
+            for a in raw_authors:
+                name = a.get("text", "") if isinstance(a, dict) else str(a)
+                name = _DBLP_DISAMBIG.sub("", _clean(name))
+                if name:
+                    authors.append(name)
+
+            ee = info.get("ee") or info.get("url") or ""
+            if isinstance(ee, list):
+                ee = ee[0] if ee else ""
+            papers.append(
+                Paper(
+                    paper_id=paper_id,
+                    title=title,
+                    url=ee,          # DOI / landing page (full text is usually paywalled)
+                    pdf_url="",      # no open PDF via DBLP
+                    authors=authors,
+                    abstract="",     # DBLP has no abstracts → title-based classification
+                )
+            )
+        return papers
+
+    def enrich_abstracts(
+        self,
+        papers: list[Paper],
+        progress: Optional[Callable[[int, int], None]] = None,
+        force_refresh: bool = False,
+    ) -> list[Paper]:
+        # DBLP exposes no abstracts; titles + authors arrive with the listing.
+        if progress:
+            progress(len(papers), len(papers))
+        return papers
+
+
+# ---------------------------------------------------------------------------
 # Registry
 # ---------------------------------------------------------------------------
 SOURCES = {
@@ -602,6 +766,13 @@ SOURCES = {
         "base_label": "PSCC base URL",
         "target_label": "Conference year (e.g. 2024, 2022) or full listing URL",
     },
+    "isgteurope": {
+        "label": "ISGT Europe (IEEE PES, via DBLP)",
+        "base": "https://dblp.org",
+        "target": "isgteurope 2024",
+        "base_label": "DBLP base URL",
+        "target_label": "DBLP venue + year (e.g. isgteurope 2024) or proceedings key",
+    },
 }
 
 
@@ -617,4 +788,8 @@ def make_source(source: str, base_url: str, cache_dir: Optional[str] = None):
         return OpenReviewSource(base_url=base_url, cache_dir=cache_dir)
     if source == "pscc":
         return PSCCSource(base_url=base_url, cache_dir=cache_dir)
+    if source in ("isgteurope", "dblp"):
+        # DBLP-backed; ISGT Europe (IEEE PES) is the registered venue, but any
+        # DBLP-indexed conference works by passing "<venue> <year>" as the target.
+        return DBLPSource(base_url=base_url, cache_dir=cache_dir)
     raise ValueError(f"Unknown source: {source}")

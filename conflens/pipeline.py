@@ -97,6 +97,10 @@ def run_analysis(
                     " PSCC is biennial — try a year that was held, e.g. '2024' or "
                     "'2022'."
                 ),
+                "isgteurope": (
+                    " Check the venue + year (e.g. 'isgteurope 2024') — DBLP may "
+                    "not have indexed that edition yet."
+                ),
             }
             hint = hints.get(cfg.source, "")
             progress.set("listing", "No papers found on that page." + hint, 1.0)
