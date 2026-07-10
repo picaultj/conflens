@@ -6,8 +6,9 @@ Guidance for coding agents (and humans) working in this repository. See
 ## What this is
 
 **ConfLens** — a NiceGUI web app that browses conference papers (ACL Anthology,
-EMNLP, NAACL, IJCAI, OpenReview / ICLR · NeurIPS, and PSCC), classifies them
-against a theme with an LLM, discovers topics, and synthesises per-topic findings. It also
+EMNLP, NAACL, IJCAI, OpenReview / ICLR · NeurIPS, PSCC, and DBLP-indexed venues
+such as ISGT Europe), classifies them against a theme with an LLM, discovers
+topics, and synthesises per-topic findings. It also
 flags near-duplicate titles and offers a fully client-side results view
 (live confidence re-threshold, keyword search + highlight, sort/author facets,
 save/load a run). Python 3.13, managed with **uv**.
@@ -60,7 +61,7 @@ regexes over heavyweight parsers, small focused modules).
 |------|--------|
 | UI + exports | `app.py`, `pptx_export.py`, `bibtex.py` |
 | Orchestration | `pipeline.py` (`AnalysisConfig`, `run_analysis`) |
-| Sources | `sources.py` (registry + `make_source`; `IJCAISource`, `OpenReviewSource`, `PSCCSource`), `scraper.py` (`AnthologyScraper` — also serves EMNLP/NAACL) |
+| Sources | `sources.py` (registry + `make_source`; `IJCAISource`, `OpenReviewSource`, `PSCCSource`, `DBLPSource`), `scraper.py` (`AnthologyScraper` — also serves EMNLP/NAACL) |
 | LLM providers | `llm.py` (`LLMClient`, `make_client`) |
 | Classify / topics | `classifier.py`, `topics.py` |
 | Near-duplicate detection | `dedup.py` (`annotate_duplicates`) |
