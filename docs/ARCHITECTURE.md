@@ -23,6 +23,7 @@ flowchart TB
       REG --> ACL["AnthologyScraper<br/>scraper.py<br/>(ACL · EMNLP · NAACL)"]
       REG --> IJ["IJCAISource"]
       REG --> OR["OpenReviewSource<br/>(ICLR · NeurIPS)"]
+      REG --> PS["PSCCSource"]
     end
 
     subgraph llm["LLM providers (llm.py · make_client)"]
@@ -47,7 +48,8 @@ flowchart TB
 
 EMNLP and NAACL are served by the same `AnthologyScraper` as the ACL Anthology
 (different default event); OpenReview talks to the public JSON API instead of
-scraping HTML.
+scraping HTML; PSCC reads a per-year HTML fragment from its papers-repository
+endpoint (titles + PDFs only — no abstracts, so classification is title-based).
 
 ## Pipeline stages
 
@@ -109,7 +111,7 @@ sequenceDiagram
 | `cli.py` | Console entry point (`conflens`); `--clear-cache`, `--host/--port`; loads `.env`.                                                                                                                                 |
 | `app.py` | NiceGUI UI: configuration form, input validation, progress, and the interactive results view (ECharts chart, per-topic findings + papers, live re-threshold / search / sort / facet, save + load a run), exports. |
 | `pipeline.py` | `AnalysisConfig` + `run_analysis()` orchestrating the stages with a `Progress` object (supports cooperative cancel).                                                                                              |
-| `sources.py` | Source interface + registry + `make_source()`; `IJCAISource`, `OpenReviewSource`, shared `_robust_get`.                                                                                                           |
+| `sources.py` | Source interface + registry + `make_source()`; `IJCAISource`, `OpenReviewSource`, `PSCCSource`, shared `_robust_get`.                                                                                             |
 | `scraper.py` | `AnthologyScraper` (ACL Anthology adapter, also serving EMNLP / NAACL) + shared HTML helpers.                                                                                                                     |
 | `dedup.py` | `annotate_duplicates()` — dependency-free near-duplicate-title clustering (union-find + `difflib`).                                                                                                               |
 | `classifier.py` | Batched, structured-output relevance classification with on-disk cache.                                                                                                                                           |

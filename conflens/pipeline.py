@@ -93,6 +93,10 @@ def run_analysis(
                     " Check the venue id (e.g. 'ICLR.cc/2024/Conference' or "
                     "'NeurIPS.cc/2024/Conference') — decisions may not be posted yet."
                 ),
+                "pscc": (
+                    " PSCC is biennial — try a year that was held, e.g. '2024' or "
+                    "'2022'."
+                ),
             }
             hint = hints.get(cfg.source, "")
             progress.set("listing", "No papers found on that page." + hint, 1.0)
