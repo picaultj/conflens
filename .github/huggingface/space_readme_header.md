@@ -6,6 +6,7 @@ colorTo: indigo
 sdk: gradio
 app_file: space_app.py
 python_version: "3.12"
+suggested_hardware: cpu-basic
 pinned: false
 license: mpl-2.0
 short_description: Browse, theme-classify and topic-model conference papers
