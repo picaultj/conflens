@@ -109,7 +109,9 @@ Action mirrors `main` to the Space on every push, so it stays in sync.
 **One-time setup:**
 
 1. **Create the Space** — on <https://huggingface.co/new-space>, pick **Gradio →
-   Blank**, and note its owner + name (e.g. `your-user/conflens`).
+   Blank**, **CPU basic** hardware (this app is CPU-only; ZeroGPU errors with
+   *"No @spaces.GPU function detected"*), and note its owner + name (e.g.
+   `your-user/conflens`).
 2. **Give GitHub a token** — create a Hugging Face access token with **write**
    scope (Settings → Access Tokens) and add it to this GitHub repo as a secret
    named **`HF_TOKEN`** (Settings → Secrets and variables → Actions).
