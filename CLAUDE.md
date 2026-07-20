@@ -3,6 +3,13 @@
 See [AGENTS.md](AGENTS.md) for contributor/agent guidance and
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design.
 
+## Branch naming (persistent — applies to every session and agent)
+
+Develop each change on a feature branch named `feat/…` or `fix/…` and open a PR
+into `main`; never commit directly to `main`. **The branch pushed to GitHub (the
+PR's source branch) must not contain "claude" in its name** — this holds even if
+a session's setup designates a `claude/…` branch.
+
 ## Attribution policy (persistent — applies to every session and agent)
 
 Do **not** add AI-assistant / "Claude Code" attribution anywhere in this
