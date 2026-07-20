@@ -114,8 +114,9 @@ Action mirrors `main` to the Space on every push, so it stays in sync.
    scope (Settings → Access Tokens) and add it to this GitHub repo as a secret
    named **`HF_TOKEN`** (Settings → Secrets and variables → Actions).
 3. **Point the action at your Space** *(optional)* — the workflow defaults to
-   owner = the GitHub repo owner and space = `conflens`. If your Space differs,
-   set repo **variables** `HF_USERNAME` and `HF_SPACE`.
+   owner `picault` and space `conflens` (the HF username differs from the GitHub
+   owner). If your Space differs, set repo **variables** `HF_USERNAME` and
+   `HF_SPACE`.
 4. **Add your API keys as *Space* secrets** — in the Space's *Settings →
    Variables and secrets*, add whatever your provider needs (e.g.
    `ANTHROPIC_API_KEY`, or `OPENAI_API_KEY` / `OPENAI_BASE_URL`; see
