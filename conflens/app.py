@@ -3,22 +3,21 @@
 from __future__ import annotations
 
 import asyncio
-import csv
 import html
-import io
 import json
 import os
-import re
 import time
 from typing import Optional
 
 from nicegui import ui
 
+from . import view
 from .cache import default_cache_dir
 from .llm import DEFAULT_MODELS, MODEL_SUGGESTIONS, PROVIDERS, env_key_for
 from .models import AnalysisResult
 from .pipeline import AnalysisConfig, Progress, run_analysis
 from .sources import SOURCES
+from .view import TOPIC_COLORS  # shared with the Gradio front-end
 
 # Sober, professional palette ------------------------------------------------
 PRIMARY = "#1f4e79"   # deep navy
@@ -26,10 +25,6 @@ ACCENT = "#2b6cb0"
 INK = "#1a202c"
 MUTED = "#64748b"
 LINE = "#e2e8f0"
-TOPIC_COLORS = [
-    "#1f4e79", "#2b6cb0", "#3182ce", "#0b7285", "#2f855a",
-    "#975a16", "#9b2c2c", "#6b46c1", "#b83280", "#4a5568",
-]
 
 _CACHE_DIR = default_cache_dir()
 
@@ -458,10 +453,7 @@ class AnalyzerUI:
     # Results-view controls (all filter/sort live, client-side)
     # ------------------------------------------------------------------ #
     def _render_controls(self, result: AnalysisResult) -> None:
-        authors = sorted(
-            {a for p in result.relevant_papers for a in p.authors if a},
-            key=str.casefold,
-        )
+        authors = view.author_choices(result)
         with ui.card().classes("w-full ca-card").style("padding:12px 18px;"):
             with ui.row().classes("w-full items-center").style("gap:12px; flex-wrap:wrap;"):
                 ui.icon("search").style(f"color:{MUTED};")
@@ -516,32 +508,21 @@ class AnalyzerUI:
                     "font-size:.8rem; white-space:nowrap;"
                 )
 
+    # These delegate to the shared, GUI-agnostic view logic (also used by Gradio).
     @staticmethod
     def _keywords(query: str) -> list[str]:
-        # Split on commas so each keyword may itself contain spaces.
-        return [k.strip().lower() for k in (query or "").split(",") if k.strip()]
+        return view.keywords(query)
 
     @staticmethod
     def _matches(paper, keywords: list[str]) -> bool:
-        if not keywords:
-            return True
-        text = f"{paper.title}\n{paper.abstract or ''}".lower()
-        return all(k in text for k in keywords)  # AND across keywords
+        return view.matches(paper, keywords)
 
     @staticmethod
     def _highlight(text: str, keywords: list[str]) -> str:
-        esc = html.escape(text or "")
-        if not keywords:
-            return esc
-        pattern = re.compile("|".join(re.escape(k) for k in keywords), re.IGNORECASE)
-        return pattern.sub(lambda m: f"<mark>{m.group(0)}</mark>", esc)
+        return view.highlight(text, keywords)
 
     def _sorted(self, papers: list, sort: str) -> list:
-        if sort == "title":
-            return sorted(papers, key=lambda p: (p.title or "").casefold())
-        if sort == "year":
-            return sorted(papers, key=lambda p: (p.year or 0), reverse=True)
-        return sorted(papers, key=lambda p: (p.confidence or 0), reverse=True)
+        return view.sort_papers(papers, sort)
 
     def _apply_view(self) -> None:
         """Recompute the filtered/sorted view and re-render chart + papers live."""
@@ -549,51 +530,28 @@ class AnalyzerUI:
         if result is None or self.topics_container is None:
             return
         query = self.search.value if self.search else ""
-        keywords = self._keywords(query)
+        keywords = view.keywords(query)
         min_conf = float(self.conf_view.value) if self.conf_view else 0.0
         author = (self.author_select.value or "") if self.author_select else ""
         sort = (self.sort_select.value or "confidence") if self.sort_select else "confidence"
         is_global = bool(self.global_toggle.value) if self.global_toggle else False
 
-        by_id = {p.paper_id: p for p in result.relevant_papers}
-        all_by_id = {p.paper_id: p for p in result.papers}  # for duplicate-rep titles
-        topic_name = {t.topic_id: t.name for t in result.topics}
-
-        def passes(p) -> bool:
-            if (p.confidence or 0) < min_conf:
-                return False
-            if author and author not in p.authors:
-                return False
-            return self._matches(p, keywords)
-
-        # Per-topic filtered papers (drives both the chart and the grouped view).
-        per_topic = {
-            t.topic_id: self._sorted(
-                [by_id[pid] for pid in t.paper_ids if pid in by_id and passes(by_id[pid])],
-                sort,
-            )
-            for t in result.topics
-        }
-        counts = [len(per_topic[t.topic_id]) for t in result.topics]
+        vd = view.compute_view(
+            result, min_conf=min_conf, query=query, author=author, sort=sort
+        )
 
         # Chart reflects the live view.
         if self.chart_container is not None:
             self.chart_container.clear()
             with self.chart_container:
-                self._render_chart([t.name for t in result.topics], counts)
+                self._render_chart(vd.names, vd.counts)
 
-        shown_papers = 0
-        shown_topics = 0
         self.topics_container.clear()
         with self.topics_container:
             if is_global:
-                shown_papers, shown_topics = self._render_global(
-                    result, per_topic, topic_name, all_by_id, keywords, sort
-                )
+                shown_papers, shown_topics = self._render_global(vd, keywords)
             else:
-                shown_papers, shown_topics = self._render_grouped(
-                    result, per_topic, topic_name, all_by_id, keywords
-                )
+                shown_papers, shown_topics = self._render_grouped(vd, keywords)
 
         self._update_status(result, shown_papers, shown_topics, min_conf, is_global)
 
@@ -606,14 +564,13 @@ class AnalyzerUI:
                 f"{shown_papers} of {len(result.relevant_papers)} papers {scope}"
             )
 
-    def _render_grouped(self, result, per_topic, topic_name, all_by_id, keywords) -> tuple:
+    def _render_grouped(self, vd, keywords) -> tuple:
         active = bool(keywords)  # auto-open + hide-empty only when keyword filtering
         shown_papers = 0
         shown_topics = 0
-        for t in result.topics:
-            papers = per_topic[t.topic_id]
-            if not papers:
-                continue
+        for tv in vd.grouped:
+            t = tv.topic
+            papers = tv.papers
             shown_papers += len(papers)
             shown_topics += 1
             color = TOPIC_COLORS[t.topic_id % len(TOPIC_COLORS)]
@@ -658,8 +615,8 @@ class AnalyzerUI:
                         for p in papers:
                             self._render_paper(
                                 p, keywords,
-                                also_in=self._also_in(p, t.topic_id, topic_name),
-                                dup_title=self._dup_title(p, all_by_id),
+                                also_in=view.also_in(p, t.topic_id, vd.topic_name),
+                                dup_title=view.dup_title(p, vd.all_by_id),
                             )
         if shown_topics == 0:
             ui.label("No papers match the current filters.").classes("ca-muted").style(
@@ -667,13 +624,9 @@ class AnalyzerUI:
             )
         return shown_papers, shown_topics
 
-    def _render_global(self, result, per_topic, topic_name, all_by_id, keywords, sort) -> tuple:
+    def _render_global(self, vd, keywords) -> tuple:
         # Flatten unique papers across topics (a multi-topic paper appears once).
-        seen: dict = {}
-        for t in result.topics:
-            for p in per_topic[t.topic_id]:
-                seen.setdefault(p.paper_id, p)
-        papers = self._sorted(list(seen.values()), sort)
+        papers = vd.flat
         with ui.card().classes("w-full ca-card").style("padding:6px 18px 14px 18px;"):
             ui.label(f"All matching papers ({len(papers)})").classes("ca-muted").style(
                 "font-size:.8rem; font-weight:600; margin-top:8px;"
@@ -685,25 +638,11 @@ class AnalyzerUI:
             for p in papers:
                 self._render_paper(
                     p, keywords,
-                    also_in=[topic_name[tid] for tid in p.topic_ids if tid in topic_name],
-                    dup_title=self._dup_title(p, all_by_id),
+                    also_in=[vd.topic_name[tid] for tid in p.topic_ids if tid in vd.topic_name],
+                    dup_title=view.dup_title(p, vd.all_by_id),
                     also_label="Topics: ",
                 )
         return len(papers), 1 if papers else 0
-
-    @staticmethod
-    def _also_in(p, current_topic_id, topic_name) -> list:
-        return [
-            topic_name[tid]
-            for tid in p.topic_ids
-            if tid != current_topic_id and tid in topic_name
-        ]
-
-    @staticmethod
-    def _dup_title(p, all_by_id) -> Optional[str]:
-        if p.duplicate_of and p.duplicate_of in all_by_id:
-            return all_by_id[p.duplicate_of].title
-        return None
 
     def _render_paper(
         self, p, keywords=None, also_in=None, dup_title=None, also_label="Also in: "
@@ -784,8 +723,7 @@ class AnalyzerUI:
     def _download_json(self) -> None:
         if not self.result:
             return
-        data = json.dumps(self.result.to_dict(), indent=2, ensure_ascii=False)
-        ui.download.content(data.encode("utf-8"), "analysis.json")
+        ui.download.content(view.json_bytes(self.result), "analysis.json")
 
     def _download_bibtex(self) -> None:
         if not self.result:
@@ -801,27 +739,7 @@ class AnalyzerUI:
     def _download_csv(self) -> None:
         if not self.result:
             return
-        topics = {t.topic_id: t.name for t in self.result.topics}
-        buf = io.StringIO()
-        writer = csv.writer(buf)
-        writer.writerow(
-            ["paper_id", "title", "topics", "confidence", "authors",
-             "duplicate_of", "pdf_url", "url"]
-        )
-        for p in self.result.relevant_papers:
-            writer.writerow(
-                [
-                    p.paper_id,
-                    p.title,
-                    "; ".join(topics.get(tid, "") for tid in p.topic_ids),
-                    f"{p.confidence:.2f}" if p.confidence is not None else "",
-                    "; ".join(p.authors),
-                    p.duplicate_of or "",
-                    p.pdf_url,
-                    p.url,
-                ]
-            )
-        ui.download.content(buf.getvalue().encode("utf-8"), "analysis.csv")
+        ui.download.content(view.csv_bytes(self.result), "analysis.csv")
 
 
 def create_ui() -> None:

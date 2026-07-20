@@ -1,4 +1,4 @@
-from conflens.app import AnalyzerUI
+from conflens import view
 from conflens.models import Paper
 
 
@@ -7,7 +7,7 @@ def _p(title="Agentic Planning with Tools", abstract="A study of retrieval metho
 
 
 def _match(paper, query: str) -> bool:
-    return AnalyzerUI._matches(paper, AnalyzerUI._keywords(query))
+    return view.matches(paper, view.keywords(query))
 
 
 def test_empty_query_matches_all():
@@ -37,10 +37,10 @@ def test_matches_title_or_abstract():
 
 
 def test_highlight_wraps_keywords_and_escapes():
-    out = AnalyzerUI._highlight("Vision & Transformers", ["vision"])
+    out = view.highlight("Vision & Transformers", ["vision"])
     assert "<mark>Vision</mark>" in out  # case-insensitive, original case kept
     assert "&amp;" in out                # HTML-escaped
-    assert AnalyzerUI._highlight("plain", []) == "plain"
+    assert view.highlight("plain", []) == "plain"
 
 
 def _sortable():
@@ -52,18 +52,12 @@ def _sortable():
 
 
 def test_sort_by_confidence_desc():
-    ui = AnalyzerUI()
-    out = ui._sorted(_sortable(), "confidence")
-    assert [p.confidence for p in out] == [0.9, 0.6, 0.4]
+    assert [p.confidence for p in view.sort_papers(_sortable(), "confidence")] == [0.9, 0.6, 0.4]
 
 
 def test_sort_by_title_casefold_asc():
-    ui = AnalyzerUI()
-    out = ui._sorted(_sortable(), "title")
-    assert [p.title for p in out] == ["alpha", "Beta", "Gamma"]
+    assert [p.title for p in view.sort_papers(_sortable(), "title")] == ["alpha", "Beta", "Gamma"]
 
 
 def test_sort_by_year_desc_missing_last():
-    ui = AnalyzerUI()
-    out = ui._sorted(_sortable(), "year")
-    assert [p.year for p in out] == [2024, 2022, None]  # newest first, missing year last
+    assert [p.year for p in view.sort_papers(_sortable(), "year")] == [2024, 2022, None]

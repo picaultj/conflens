@@ -1,7 +1,7 @@
 [project]
 name = "conference-analyzer"
 version = "0.1.5"
-description = "Browse, theme-classify, and topic-model conference papers with a NiceGUI UI."
+description = "Browse, theme-classify, and topic-model conference papers with NiceGUI and Gradio UIs."
 readme = "README.md"
 requires-python = ">=3.13"
 license = { text = "MPL-2.0" }
@@ -18,9 +18,14 @@ dependencies = [
 # Optional embedding-based topic backend. Heavy (pulls in sentence-transformers
 # / torch); install with `uv sync --extra bertopic`.
 bertopic = ["bertopic>=0.16"]
+# Gradio front-end (the one deployed to Hugging Face Spaces). The NiceGUI GUI
+# ships in the base install; install this to run the Gradio GUI locally with
+# `uv sync --extra gradio` then `uv run conflens-gradio`.
+gradio = ["gradio>=4.44"]
 
 [project.scripts]
-conference-analyzer = "conflens.cli:main"
+conference-analyzer = "conflens.cli:main"      # NiceGUI GUI
+conflens-gradio = "conflens.gradio_app:main"   # Gradio GUI
 
 [dependency-groups]
 # Installed by default with `uv sync`; used for tests + linting / CI.
