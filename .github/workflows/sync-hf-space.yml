@@ -5,10 +5,10 @@ name: Sync to Hugging Face Space
 # 0.0.0.0:8080 — matched by `app_port: 8080` in the Space metadata).
 #
 # One-time setup (see README → "Deploy to Hugging Face Spaces"):
-#   1. Create a Docker Space on huggingface.co.
+#   1. Create a Gradio Space on huggingface.co.
 #   2. Add a repo secret HF_TOKEN (a HF access token with write scope).
-#   3. Optionally set repo variables HF_USERNAME / HF_SPACE (they default to the
-#      GitHub owner and "conflens").
+#   3. Optionally set repo variables HF_USERNAME / HF_SPACE (they default to
+#      "picault" and "conflens").
 #   4. Add your LLM API keys as *Space* secrets in the Space settings.
 on:
   push:
@@ -42,7 +42,9 @@ jobs:
       - name: Push to Hugging Face Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          HF_USERNAME: ${{ vars.HF_USERNAME || github.repository_owner }}
+          # HF owner defaults to 'picault' (the HF username differs from the
+          # GitHub owner 'picaultj'); override with the HF_USERNAME repo variable.
+          HF_USERNAME: ${{ vars.HF_USERNAME || 'picault' }}
           HF_SPACE: ${{ vars.HF_SPACE || 'conflens' }}
         run: |
           set -euo pipefail
