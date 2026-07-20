@@ -12,7 +12,9 @@
 [![uv](https://img.shields.io/badge/managed%20by-uv-DE5FE9.svg?logo=uv&logoColor=white)](https://docs.astral.sh/uv/)
 [![Built with NiceGUI](https://img.shields.io/badge/UI-NiceGUI-2b6cb0.svg)](https://nicegui.io)
 
-A desktop-style web app (built with [NiceGUI](https://nicegui.io)) that:
+A desktop-style web app — with **two interchangeable front-ends**,
+[NiceGUI](https://nicegui.io) (local/Docker) and [Gradio](https://gradio.app)
+(deployed to Hugging Face Spaces) — that:
 
 1. **Browses** papers from a chosen **source** and retrieves their abstracts:
    - the [ACL Anthology](https://aclanthology.org) (default; e.g. `acl-2026`),
@@ -55,13 +57,18 @@ Requires Python 3.13+ and [uv](https://docs.astral.sh/uv/).
 ```bash
 uv sync                                   # Claude, OpenAI, LiteLLM work out of the box
 cp .env.example .env                       # then fill in your provider key(s)
-uv run conference-analyzer                # or: uv run python run.py
+uv run conference-analyzer                # NiceGUI GUI → http://localhost:6868
+```
+
+Prefer **Gradio** (same features; the front-end deployed to Hugging Face)?
+
+```bash
+uv sync --extra gradio
+uv run conflens-gradio                     # Gradio GUI → http://localhost:7860
 ```
 
 Keys are read from `.env` (loaded automatically) or the process environment;
 you can also paste a key into the app's **API key** field at runtime.
-
-Then open <http://localhost:6868>.
 
 `uv` provisions the right Python automatically (pinned to 3.13 via
 `.python-version`); you don't need to install it yourself.
@@ -94,13 +101,14 @@ To also build the optional BERTopic backend into the image:
 
 ### Deploy to Hugging Face Spaces
 
-ConfLens runs on Hugging Face as a **Docker Space** (it builds the `Dockerfile`
-above, which serves on `0.0.0.0:6868`). A GitHub Action mirrors `main` to the
-Space on every push, so it stays in sync automatically.
+The **Gradio** front-end is deployed to Hugging Face as a **Gradio SDK Space**
+(free CPU tier). HF installs [`requirements.txt`](requirements.txt) and runs
+[`space_app.py`](space_app.py), which serves `conflens.gradio_app`. A GitHub
+Action mirrors `main` to the Space on every push, so it stays in sync.
 
 **One-time setup:**
 
-1. **Create the Space** — on <https://huggingface.co/new-space>, pick **Docker →
+1. **Create the Space** — on <https://huggingface.co/new-space>, pick **Gradio →
    Blank**, and note its owner + name (e.g. `your-user/conflens`).
 2. **Give GitHub a token** — create a Hugging Face access token with **write**
    scope (Settings → Access Tokens) and add it to this GitHub repo as a secret
@@ -114,14 +122,17 @@ Space on every push, so it stays in sync automatically.
    [`.env.example`](.env.example)). The app reads them as environment variables.
 
 That's it — push to `main` (or run the **Sync to Hugging Face Space** workflow
-manually) and the Space rebuilds. The Space metadata (`sdk: docker`,
-`app_port: 6868`, …) lives in
+manually) and the Space rebuilds. The Space metadata (`sdk: gradio`,
+`app_file: space_app.py`, …) lives in
 [`.github/huggingface/space_readme_header.md`](.github/huggingface/space_readme_header.md);
 the action prepends it to the README it pushes, so the GitHub README stays clean.
 
 > The Space's filesystem is ephemeral, so the on-disk cache resets on rebuild.
-> For persistent caching, attach Hugging Face **persistent storage** and point
-> `--cache-dir` at its mount (`/data`).
+> For persistent caching, attach Hugging Face **persistent storage** and set
+> `HOME` (or a `--cache-dir`) to point at its `/data` mount.
+
+> The Docker image above still runs the **NiceGUI** app (`0.0.0.0:6868`) for
+> local/self-hosted use; the two front-ends share all analysis logic.
 
 ### LLM providers
 
