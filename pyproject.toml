@@ -1,6 +1,6 @@
 [project]
 name = "conference-analyzer"
-version = "0.1.6"
+version = "0.1.7"
 description = "Browse, theme-classify, and topic-model conference papers with a NiceGUI UI."
 readme = "README.md"
 requires-python = ">=3.13"
