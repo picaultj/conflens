@@ -93,7 +93,9 @@ regexes over heavyweight parsers, small focused modules).
 ## Git workflow
 
 - **Do not commit to `main` directly.** Create a feature branch per change and
-  open a PR into `main`. The branch shall be named with a prefix such as feat/... or fix/... etc.
+  open a PR into `main`. Name the branch with a `feat/…` or `fix/…` prefix, and
+  **the branch pushed to GitHub (the PR's source) must not contain "claude"** in
+  its name (see [CLAUDE.md](CLAUDE.md)).
 - **No AI-assistant / Claude Code attribution** anywhere — no `Co-Authored-By`,
   `Claude-Session`, `🤖 Generated with …`, or `claude.ai/code` in commit
   messages or PR descriptions, and don't attribute commit authorship to an
