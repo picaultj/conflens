@@ -17,19 +17,15 @@ save/load a run). Python 3.13, managed with **uv**.
 
 ```bash
 uv sync                        # base install (Anthropic, OpenAI, LiteLLM + NiceGUI)
-uv sync --extra gradio         # + the Gradio GUI
 uv sync --extra bertopic       # + BERTopic topic backend (heavy)
 
 cp .env.example .env           # add provider key(s); loaded automatically
 uv run conference-analyzer     # NiceGUI GUI on http://localhost:6868
-uv run conflens-gradio         # Gradio GUI on http://localhost:7860
 uv run conference-analyzer --clear-cache   # wipe the on-disk cache
 ```
 
-**Two front-ends, kept in parity:** `app.py` (NiceGUI) and `gradio_app.py`
-(Gradio, deployed to Hugging Face). All non-UI logic lives in `view.py` +
-`pipeline.py`; when you change a user-facing feature, update **both** GUIs. See
-[CLAUDE.md](CLAUDE.md).
+The GUI (`app.py`) is a thin **NiceGUI** presentation layer; all non-UI logic
+lives in `view.py` + `pipeline.py` — put behaviour changes there.
 
 Docker: `docker compose up --build` (see the README).
 
@@ -66,8 +62,8 @@ regexes over heavyweight parsers, small focused modules).
 
 | Area | Module |
 |------|--------|
-| GUIs (feature parity) | `app.py` (NiceGUI), `gradio_app.py` (Gradio) |
-| Shared view logic | `view.py` (filter/sort/highlight/compute_view/exports) |
+| UI (NiceGUI) | `app.py` |
+| View logic | `view.py` (filter/sort/highlight/compute_view/exports) |
 | Exports | `pptx_export.py`, `bibtex.py` |
 | Orchestration | `pipeline.py` (`AnalysisConfig`, `run_analysis`) |
 | Sources | `sources.py` (registry + `make_source`; `IJCAISource`, `OpenReviewSource`, `PSCCSource`, `DBLPSource`), `scraper.py` (`AnthologyScraper` — also serves EMNLP/NAACL) |

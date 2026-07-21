@@ -23,8 +23,8 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Sync dependencies (base + dev + gradio)
-        run: uv sync --extra gradio   # so the Gradio GUI is covered by the suite
+      - name: Sync dependencies (base + dev)
+        run: uv sync
 
       - name: Tests (pytest)
         run: uv run pytest -q
