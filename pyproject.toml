@@ -18,14 +18,9 @@ dependencies = [
 # Optional embedding-based topic backend. Heavy (pulls in sentence-transformers
 # / torch); install with `uv sync --extra bertopic`.
 bertopic = ["bertopic>=0.16"]
-# Gradio front-end (the one deployed to Hugging Face Spaces). The NiceGUI GUI
-# ships in the base install; install this to run the Gradio GUI locally with
-# `uv sync --extra gradio` then `uv run conflens-gradio`.
-gradio = ["gradio>=4.44"]
 
 [project.scripts]
-conference-analyzer = "conflens.cli:main"      # NiceGUI GUI
-conflens-gradio = "conflens.gradio_app:main"   # Gradio GUI
+conference-analyzer = "conflens.cli:main"
 
 [dependency-groups]
 # Installed by default with `uv sync`; used for tests + linting / CI.

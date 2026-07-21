@@ -25,16 +25,9 @@ repository or its GitHub artifacts:
 feature (the `anthropic` provider and `claude-*` model ids in `llm.py`) and
 stays — this policy is about tooling attribution, not the app's providers.
 
-## Two front-ends (persistent — keep both maintained)
+## Front-end (NiceGUI)
 
-The app ships **two GUIs with feature parity**:
-
-- **NiceGUI** — `conflens/app.py` (console script `conference-analyzer`); run
-  locally / in Docker.
-- **Gradio** — `conflens/gradio_app.py` (console script `conflens-gradio`); this
-  is the front-end deployed to Hugging Face Spaces.
-
-All non-UI logic (filtering, sorting, highlighting, the computed view, exports)
-lives in **`conflens/view.py`** and the pipeline — put behaviour changes there so
-both GUIs inherit them. When you add or change a user-facing feature, **update
-both `app.py` and `gradio_app.py`** so they stay in parity.
+The app has a single **NiceGUI** GUI in `conflens/app.py` (console script
+`conference-analyzer`). All non-UI logic (filtering, sorting, highlighting, the
+computed view, exports) lives in **`conflens/view.py`** and the pipeline — put
+behaviour changes there so the UI stays a thin presentation layer.

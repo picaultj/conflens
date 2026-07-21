@@ -1,9 +1,8 @@
 # Architecture
 
-ConfLens is a small, single-process web app. It has **two interchangeable
-front-ends** — NiceGUI (`app.py`, local/Docker) and Gradio (`gradio_app.py`,
-deployed to Hugging Face) — that share all non-UI logic via `view.py` and the
-pipeline. A front end drives a
+ConfLens is a small, single-process web app. A **NiceGUI** front end (`app.py`)
+is a thin presentation layer over the shared view logic (`view.py`) and the
+pipeline, which drives a
 linear pipeline — **browse → classify → topic-model → summarize** — over a
 pluggable *source* (which conference) and a pluggable *LLM provider* (which
 model). Everything expensive is cached on disk.
@@ -117,8 +116,7 @@ sequenceDiagram
 |--------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `cli.py` | Console entry point (`conflens`); `--clear-cache`, `--host/--port`; loads `.env`.                                                                                                                                 |
 | `app.py` | **NiceGUI** GUI: configuration form, input validation, progress, and the interactive results view (ECharts chart, per-topic findings + papers, live re-threshold / search / sort / facet, save + load a run), exports. |
-| `gradio_app.py` | **Gradio** GUI (deployed to Hugging Face) — same features via HTML rendering; launched by `space_app.py`. |
-| `view.py` | GUI-agnostic view logic shared by both front-ends: `keywords`/`matches`/`highlight`/`sort_papers`/`compute_view` + CSV/JSON export bytes. |
+| `view.py` | GUI-agnostic view logic used by `app.py`: `keywords`/`matches`/`highlight`/`sort_papers`/`compute_view` + CSV/JSON export bytes. |
 | `pipeline.py` | `AnalysisConfig` + `run_analysis()` orchestrating the stages with a `Progress` object (supports cooperative cancel).                                                                                              |
 | `sources.py` | Source interface + registry + `make_source()`; `IJCAISource`, `OpenReviewSource`, `PSCCSource`, `DBLPSource`, shared `_robust_get`.                                                                                |
 | `scraper.py` | `AnthologyScraper` (ACL Anthology adapter, also serving EMNLP / NAACL) + shared HTML helpers.                                                                                                                     |
