@@ -364,9 +364,11 @@ class OpenReviewSource:
                 break
         if not notes and last_err is not None:
             raise RuntimeError(
-                f"OpenReview request failed ({last_err}). Recent ICLR/NeurIPS venues "
-                "require authentication — set OPENREVIEW_USERNAME and OPENREVIEW_PASSWORD "
-                "(or OPENREVIEW_TOKEN) in the environment and retry."
+                f"OpenReview request failed ({last_err}). OpenReview now gates "
+                "anonymous note queries behind an anti-bot challenge (HTTP 403 "
+                "ChallengeRequiredError), so ICLR/NeurIPS venues need a logged-in "
+                "session — set OPENREVIEW_TOKEN, or OPENREVIEW_USERNAME and "
+                "OPENREVIEW_PASSWORD, in the environment and retry."
             )
         papers = self.parse_notes(notes)
         try:
