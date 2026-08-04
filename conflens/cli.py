@@ -26,7 +26,7 @@ def _load_env() -> None:
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        prog="conference-analyzer",
+        prog="conflens",
         description="Browse, theme-classify, and topic-model conference papers.",
     )
     parser.add_argument(

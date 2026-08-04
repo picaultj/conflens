@@ -28,6 +28,6 @@ stays — this policy is about tooling attribution, not the app's providers.
 ## Front-end (NiceGUI)
 
 The app has a single **NiceGUI** GUI in `conflens/app.py` (console script
-`conference-analyzer`). All non-UI logic (filtering, sorting, highlighting, the
+`conflens`). All non-UI logic (filtering, sorting, highlighting, the
 computed view, exports) lives in **`conflens/view.py`** and the pipeline — put
 behaviour changes there so the UI stays a thin presentation layer.

@@ -55,8 +55,11 @@ Requires Python 3.13+ and [uv](https://docs.astral.sh/uv/).
 ```bash
 uv sync                                   # Claude, OpenAI, LiteLLM work out of the box
 cp .env.example .env                       # then fill in your provider key(s)
-uv run conference-analyzer                # or: uv run python run.py
+uv run conflens                           # or: uv run python run.py
 ```
+
+(`conflens` is the console command once the package is installed;
+`conference-analyzer` remains as an alias.)
 
 Then open <http://localhost:6868>.
 
@@ -248,11 +251,11 @@ rebuild from scratch.
 To wipe the cache from the command line:
 
 ```bash
-uv run conference-analyzer --clear-cache          # default ~/.cache/conflens
-uv run conference-analyzer --clear-cache --cache-dir /path/to/cache
+uv run conflens --clear-cache                     # default ~/.cache/conflens
+uv run conflens --clear-cache --cache-dir /path/to/cache
 ```
 
-Other flags: `--host`, `--port` (run `conference-analyzer --help`).
+Other flags: `--host`, `--port` (run `conflens --help`).
 
 ## Cost
 

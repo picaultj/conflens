@@ -20,8 +20,8 @@ uv sync                        # base install (Anthropic, OpenAI, LiteLLM + Nice
 uv sync --extra bertopic       # + BERTopic topic backend (heavy)
 
 cp .env.example .env           # add provider key(s); loaded automatically
-uv run conference-analyzer     # NiceGUI GUI on http://localhost:6868
-uv run conference-analyzer --clear-cache   # wipe the on-disk cache
+uv run conflens                # NiceGUI GUI on http://localhost:6868
+uv run conflens --clear-cache  # wipe the on-disk cache
 ```
 
 The GUI (`app.py`) is a thin **NiceGUI** presentation layer; all non-UI logic
@@ -46,7 +46,7 @@ behaviour, add a test next to the matching `tests/test_*.py`.
 
 Beyond the automated gate, for changes with real runtime surface:
 
-- **Boot the app:** `uv run conference-analyzer`, confirm `GET /` returns 200
+- **Boot the app:** `uv run conflens`, confirm `GET /` returns 200
   and the logs are clean.
 - **Scraper/source changes:** also validate against the live source (counts, a
   sample record's title/authors/abstract). ACL listing pages are large and may
