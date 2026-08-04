@@ -20,7 +20,8 @@ dependencies = [
 bertopic = ["bertopic>=0.16"]
 
 [project.scripts]
-conference-analyzer = "conflens.cli:main"
+conflens = "conflens.cli:main"
+conference-analyzer = "conflens.cli:main"  # backward-compatible alias
 
 [dependency-groups]
 # Installed by default with `uv sync`; used for tests + linting / CI.

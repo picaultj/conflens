@@ -20,7 +20,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     uv sync --frozen --no-install-project ${EXTRAS}
 
-# 2) Copy the project and install it (the conference-analyzer entry point).
+# 2) Copy the project and install it (the conflens entry point).
 COPY . /app
 COPY --link .env* /app/
 RUN --mount=type=cache,target=/root/.cache/uv \
@@ -38,6 +38,6 @@ ENV HOME=/home/app
 EXPOSE 6868
 
 # ENTRYPOINT + CMD: default launches the server; `docker run <image> --clear-cache`
-# (or any other flags) is appended to `conference-analyzer`.
-ENTRYPOINT ["conference-analyzer"]
+# (or any other flags) is appended to `conflens`.
+ENTRYPOINT ["conflens"]
 CMD ["--host", "0.0.0.0", "--port", "6868"]
