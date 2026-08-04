@@ -174,11 +174,10 @@ data-model and caching diagrams, plus extension points.
   > (e.g. **PowerTech**, **PES General Meeting**) can't be added without an IEEE
   > Xplore API key.
 
-  > **OpenReview auth** — recent (API v2) venues challenge anonymous requests
-  > from some networks. If a run returns an auth error, set `OPENREVIEW_TOKEN`,
-  > or `OPENREVIEW_USERNAME` + `OPENREVIEW_PASSWORD` (see `.env.example`); the
-  > adapter logs in and authenticates automatically. Older venues work
-  > anonymously.
+  > **OpenReview auth** — OpenReview gates anonymous note queries behind an
+  > anti-bot challenge (HTTP 403), so ICLR / NeurIPS venues need credentials:
+  > set `OPENREVIEW_TOKEN`, or `OPENREVIEW_USERNAME` + `OPENREVIEW_PASSWORD`
+  > (see `.env.example`); the adapter logs in and authenticates automatically.
 - **Theme** — any phrase; defaults to *Agentic AI*.
 - **Theme definition** — optional free text clarifying what the theme includes
   or excludes (e.g. *"tool-using LLM agents; exclude pure RL"*). It is threaded
