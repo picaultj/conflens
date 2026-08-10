@@ -1,4 +1,4 @@
-from conflens.sources import OpenReviewSource, _cv
+from conflens.sources import OpenReviewSource, _cv, auth_fields, make_source
 
 # API v2 note: content values are wrapped in {"value": …}; PDF is a relative path.
 NOTE_V2 = {
@@ -78,3 +78,48 @@ def test_api_roots_fallback(tmp_path):
     roots = src._api_roots()
     assert roots[0] == "https://api2.openreview.net"
     assert "https://api.openreview.net" in roots      # v1 fallback present
+
+
+# -- auth wiring (GUI-supplied credentials) --------------------------------- #
+def test_auth_token_from_constructor_sets_bearer(tmp_path):
+    src = OpenReviewSource(cache_dir=str(tmp_path), auth={"OPENREVIEW_TOKEN": "tok-123"})
+    assert src._headers()["Authorization"] == "Bearer tok-123"
+
+
+def test_no_auth_no_env_is_anonymous(tmp_path, monkeypatch):
+    for v in ("OPENREVIEW_TOKEN", "OPENREVIEW_USERNAME", "OPENREVIEW_EMAIL", "OPENREVIEW_PASSWORD"):
+        monkeypatch.delenv(v, raising=False)
+    src = OpenReviewSource(cache_dir=str(tmp_path))
+    assert "Authorization" not in src._headers()
+
+
+def test_constructor_auth_overrides_env(tmp_path, monkeypatch):
+    monkeypatch.setenv("OPENREVIEW_TOKEN", "env-tok")
+    src = OpenReviewSource(cache_dir=str(tmp_path), auth={"OPENREVIEW_TOKEN": "gui-tok"})
+    assert src._headers()["Authorization"] == "Bearer gui-tok"  # GUI value wins over env
+
+
+def test_empty_auth_values_ignored_falls_back_to_env(tmp_path, monkeypatch):
+    monkeypatch.setenv("OPENREVIEW_TOKEN", "env-tok")
+    src = OpenReviewSource(cache_dir=str(tmp_path), auth={"OPENREVIEW_TOKEN": "  "})
+    assert src._headers()["Authorization"] == "Bearer env-tok"  # blank field → env fallback
+
+
+def test_auth_fields_only_for_openreview():
+    assert [f["env"] for f in auth_fields("openreview")] == [
+        "OPENREVIEW_TOKEN", "OPENREVIEW_USERNAME", "OPENREVIEW_PASSWORD"
+    ]
+    # Public sources declare no credential fields → nothing shown in the GUI.
+    assert auth_fields("aclanthology") == []
+    assert auth_fields("emnlp") == []
+    assert auth_fields("ijcai") == []
+    assert auth_fields("pscc") == []
+
+
+def test_make_source_threads_auth_to_openreview(tmp_path):
+    src = make_source(
+        "openreview", "https://api2.openreview.net",
+        cache_dir=str(tmp_path), auth={"OPENREVIEW_TOKEN": "mk-tok"},
+    )
+    assert isinstance(src, OpenReviewSource)
+    assert src._headers()["Authorization"] == "Bearer mk-tok"

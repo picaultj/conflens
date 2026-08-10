@@ -240,6 +240,7 @@ class OpenReviewSource:
         base_url: str = "https://api2.openreview.net",
         cache_dir: Optional[str] = None,
         timeout: int = 120,
+        auth: Optional[dict] = None,
     ) -> None:
         self.base_url = (base_url or "https://api2.openreview.net").rstrip("/")
         self.timeout = timeout
@@ -247,21 +248,32 @@ class OpenReviewSource:
             os.path.expanduser("~"), ".cache", "conflens"
         )
         os.makedirs(self.cache_dir, exist_ok=True)
+        # Credentials passed from the GUI (keyed by env-var name); empty values
+        # dropped so we fall back to the process environment.
+        self._auth = {k: v.strip() for k, v in (auth or {}).items() if v and v.strip()}
         self._tok: Optional[str] = None  # None = not yet resolved; "" = anonymous
 
     # -- authentication (optional) -----------------------------------------
     # Anonymous access to recent (API v2) venues is challenged from some IPs;
     # a bearer token from OPENREVIEW_TOKEN, or a login with
     # OPENREVIEW_USERNAME/OPENREVIEW_PASSWORD, bypasses that.
+    def _cred(self, *names: str) -> str:
+        """First non-empty credential across the GUI-supplied auth then the env."""
+        for n in names:
+            v = self._auth.get(n) or os.environ.get(n)
+            if v and v.strip():
+                return v.strip()
+        return ""
+
     def _token(self) -> Optional[str]:
         if self._tok is not None:
             return self._tok or None
-        direct = os.environ.get("OPENREVIEW_TOKEN")
+        direct = self._cred("OPENREVIEW_TOKEN")
         if direct:
-            self._tok = direct.strip()
+            self._tok = direct
             return self._tok
-        user = os.environ.get("OPENREVIEW_USERNAME") or os.environ.get("OPENREVIEW_EMAIL")
-        pw = os.environ.get("OPENREVIEW_PASSWORD")
+        user = self._cred("OPENREVIEW_USERNAME", "OPENREVIEW_EMAIL")
+        pw = self._cred("OPENREVIEW_PASSWORD")
         self._tok = (self._login(user, pw) or "") if (user and pw) else ""
         return self._tok or None
 
@@ -760,6 +772,17 @@ SOURCES = {
         "target": "ICLR.cc/2024/Conference",
         "base_label": "OpenReview API base",
         "target_label": "Venue ID (e.g. ICLR.cc/2024/Conference, NeurIPS.cc/2024/Conference)",
+        # OpenReview now challenges anonymous note queries, so this source needs
+        # credentials. Surfaced in the GUI (keyed by env-var name); a bearer
+        # token OR username + password. Empty fields fall back to the environment.
+        "auth_fields": [
+            {"env": "OPENREVIEW_TOKEN", "label": "OpenReview token", "secret": True,
+             "help": "Bearer token (alternative to username + password)."},
+            {"env": "OPENREVIEW_USERNAME", "label": "OpenReview username / email",
+             "secret": False, "help": "Your OpenReview login (with the password below)."},
+            {"env": "OPENREVIEW_PASSWORD", "label": "OpenReview password", "secret": True,
+             "help": "Used with the username to log in."},
+        ],
     },
     "pscc": {
         "label": "PSCC (Power Systems Computation Conf.)",
@@ -778,8 +801,27 @@ SOURCES = {
 }
 
 
-def make_source(source: str, base_url: str, cache_dir: Optional[str] = None):
-    """Return a source adapter for ``source`` (raises on unknown keys)."""
+def auth_fields(source: str) -> list[dict]:
+    """Credential fields a source needs (empty for public sources).
+
+    Used by the GUI to render authentication inputs only for sources that
+    require them (e.g. OpenReview); public sources (ACL, EMNLP, IJCAI, …) get
+    none. Each field is ``{env, label, secret, help?}`` keyed by env-var name.
+    """
+    return list(SOURCES.get(source, {}).get("auth_fields", []))
+
+
+def make_source(
+    source: str,
+    base_url: str,
+    cache_dir: Optional[str] = None,
+    auth: Optional[dict] = None,
+):
+    """Return a source adapter for ``source`` (raises on unknown keys).
+
+    ``auth`` carries optional per-source credentials (keyed by env-var name);
+    only sources that need them (OpenReview) use it — others ignore it.
+    """
     if source in ("aclanthology", "emnlp", "naacl"):
         # EMNLP and NAACL proceedings live on the ACL Anthology; same adapter,
         # different default event. Any Anthology event slug works for any key.
@@ -787,7 +829,7 @@ def make_source(source: str, base_url: str, cache_dir: Optional[str] = None):
     if source == "ijcai":
         return IJCAISource(base_url=base_url, cache_dir=cache_dir)
     if source == "openreview":
-        return OpenReviewSource(base_url=base_url, cache_dir=cache_dir)
+        return OpenReviewSource(base_url=base_url, cache_dir=cache_dir, auth=auth)
     if source == "pscc":
         return PSCCSource(base_url=base_url, cache_dir=cache_dir)
     if source in ("isgteurope", "dblp"):

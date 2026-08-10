@@ -55,6 +55,7 @@ class AnalysisConfig:
     min_confidence: float = 0.5
     topic_backend: str = "llm"     # "llm" | "bertopic"
     refresh: bool = False          # bypass the scrape cache and refetch from source
+    source_auth: dict = field(default_factory=dict)  # per-source creds (OpenReview)
 
 
 def run_analysis(
@@ -63,7 +64,9 @@ def run_analysis(
     cache_dir: Optional[str] = None,
 ) -> AnalysisResult:
     """Execute the full pipeline. Designed to run in a worker thread."""
-    scraper = make_source(cfg.source, base_url=cfg.base_url, cache_dir=cache_dir)
+    scraper = make_source(
+        cfg.source, base_url=cfg.base_url, cache_dir=cache_dir, auth=cfg.source_auth
+    )
     event_url = scraper.resolve_url(cfg.event)
     result = AnalysisResult(
         theme=cfg.theme, event_url=event_url, min_confidence=cfg.min_confidence
