@@ -16,7 +16,7 @@ from .cache import default_cache_dir
 from .llm import DEFAULT_MODELS, MODEL_SUGGESTIONS, PROVIDERS, env_key_for
 from .models import AnalysisResult
 from .pipeline import AnalysisConfig, Progress, run_analysis
-from .sources import SOURCES
+from .sources import SOURCES, auth_fields
 from .view import TOPIC_COLORS  # shared with the Gradio front-end
 
 # Sober, professional palette ------------------------------------------------
@@ -56,6 +56,9 @@ class AnalyzerUI:
         self.author_select: Optional[ui.select] = None
         self.conf_view: Optional[ui.slider] = None
         self.conf_view_label: Optional[ui.label] = None
+        # Source-credential inputs, keyed by env-var name (populated per source).
+        self.auth_container: Optional[ui.column] = None
+        self.auth_inputs: dict = {}
 
     # ------------------------------------------------------------------ #
     # Layout
@@ -115,6 +118,10 @@ class AnalyzerUI:
                     value=SOURCES["aclanthology"]["target"],
                 ).props("outlined dense").style("flex:1 1 200px;")
             self.source.on_value_change(lambda e: self._on_source_change(e.value))
+            # Source-credential fields — rendered only for sources that need them
+            # (e.g. OpenReview); public sources (ACL, EMNLP, IJCAI, …) show nothing.
+            self.auth_container = ui.column().classes("w-full").style("gap:8px;")
+            self._render_auth_fields("aclanthology")
             with ui.row().classes("w-full").style("gap:16px; flex-wrap:wrap;"):
                 self.theme = ui.input("Theme", value="Agentic AI").props(
                     "outlined dense"
@@ -222,6 +229,35 @@ class AnalyzerUI:
         self.base_url.props(f'label="{cfg["base_label"]}"')
         self.event.set_value(cfg["target"])
         self.event.props(f'label="{cfg["target_label"]}"')
+        self._render_auth_fields(source)
+
+    def _render_auth_fields(self, source: str) -> None:
+        """(Re)build the credential inputs — only for sources that need them."""
+        fields = auth_fields(source)
+        self.auth_container.clear()
+        self.auth_inputs = {}
+        if not fields:
+            self.auth_container.style("display:none;")
+            return
+        self.auth_container.style("display:flex;")
+        label = SOURCES.get(source, {}).get("label", source)
+        with self.auth_container:
+            ui.label(f"{label} — authentication required").style(
+                f"font-weight:600; color:{INK}; font-size:.85rem;"
+            )
+            with ui.row().classes("w-full items-center").style("gap:16px; flex-wrap:wrap;"):
+                for f in fields:
+                    props = "outlined dense clearable"
+                    if f.get("secret"):
+                        props += " type=password"
+                    inp = ui.input(f["label"]).props(props).style("flex:1 1 240px;")
+                    if f.get("help"):
+                        inp.tooltip(f["help"])
+                    self.auth_inputs[f["env"]] = inp
+            ui.label(
+                "Leave a field blank to use its environment variable if set "
+                f"({', '.join(f['env'] for f in fields)})."
+            ).classes("ca-muted").style("font-size:.76rem;")
 
     def _on_provider_change(self, provider: str) -> None:
         """Update the default model, endpoint relevance and key hint per provider."""
@@ -305,6 +341,11 @@ class AnalyzerUI:
         self.elapsed_label.set_text("0:00")
         self.log_area.clear()
 
+        source_auth = {
+            env: (inp.value or "").strip()
+            for env, inp in self.auth_inputs.items()
+            if (inp.value or "").strip()
+        }
         cfg = AnalysisConfig(
             source=self.source.value,
             base_url=self.base_url.value.strip(),
@@ -320,6 +361,7 @@ class AnalyzerUI:
             min_confidence=float(self.min_conf.value),
             topic_backend=self.backend.value,
             refresh=bool(self.refresh.value),
+            source_auth=source_auth,
         )
 
         self.timer = ui.timer(0.25, self._tick)
