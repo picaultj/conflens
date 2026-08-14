@@ -1,6 +1,6 @@
 [project]
 name = "conflens"
-version = "0.1.13"
+version = "0.1.14"
 description = "Browse, theme-classify, and topic-model conference papers with a NiceGUI UI."
 readme = "README.md"
 requires-python = ">=3.13"
