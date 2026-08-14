@@ -1,12 +1,19 @@
 name: Release
 
 # When a pull request is merged into main, bump the version in pyproject.toml
-# (and keep uv.lock in sync), commit it back to main, and create a matching tag.
+# (and keep uv.lock in sync), commit it back to main, create a matching tag,
+# then build and publish the package to PyPI.
 #
 # Bump level is patch by default; add a "minor" or "major" label to the PR to
 # bump those instead. The version-bump commit and tag are pushed with the
 # built-in GITHUB_TOKEN, which by design does NOT re-trigger workflows — so this
-# never loops (the `[skip ci]` marker is belt-and-suspenders).
+# never loops (the `[skip ci]` marker is belt-and-suspenders). Publishing runs
+# in this same job (a separate tag-triggered workflow would never fire, since
+# GITHUB_TOKEN-pushed tags don't trigger workflows).
+#
+# PyPI publishing requires a repo secret PYPI_API_TOKEN (a PyPI API token; set
+# TWINE_USERNAME=__token__). Without it the publish step fails; the bump/tag
+# still succeed.
 on:
   pull_request:
     types: [closed]
@@ -49,6 +56,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: Bump version and create tag
+        id: bump
         run: |
           set -euo pipefail
           CUR=$(grep -m1 -E '^version *= *"' pyproject.toml | sed -E 's/.*"([^"]+)".*/\1/')
@@ -64,6 +72,7 @@ jobs:
 
           if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
             echo "Tag ${TAG} already exists — nothing to do."
+            echo "released=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -75,4 +84,17 @@ jobs:
           git tag -a "${TAG}" -m "Release ${TAG} (PR #${PR_NUMBER}: ${PR_TITLE})"
           git push origin HEAD:main
           git push origin "${TAG}"
+          echo "released=true" >> "$GITHUB_OUTPUT"
           echo "Released ${TAG}"
+
+      - name: Build distributions
+        if: steps.bump.outputs.released == 'true'
+        run: uv build   # builds from the just-bumped pyproject.toml -> dist/*
+
+      - name: Publish to PyPI
+        if: steps.bump.outputs.released == 'true'
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        # --skip-existing keeps re-runs idempotent if the version is already up.
+        run: uvx twine upload --non-interactive --skip-existing dist/*

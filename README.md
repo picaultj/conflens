@@ -2,13 +2,13 @@
 
 [![Lint](https://img.shields.io/github/actions/workflow/status/picaultj/conflens/lint.yml?branch=main&logo=github&label=lint)](https://github.com/picaultj/conflens/actions/workflows/lint.yml)
 [![Tests](https://img.shields.io/github/actions/workflow/status/picaultj/conflens/test.yml?branch=main&logo=github&label=tests)](https://github.com/picaultj/conflens/actions/workflows/test.yml)
-[![Downloads](https://img.shields.io/github/downloads/picaultj/conflens/total?logo=github&label=downloads)](https://github.com/picaultj/conflens/releases)
-[![Release](https://img.shields.io/github/v/release/picaultj/conflens?logo=github&label=release&sort=semver)](https://github.com/picaultj/conflens/releases)
+[![PyPI version](https://img.shields.io/pypi/v/conflens?logo=pypi&logoColor=white&label=pypi)](https://pypi.org/project/conflens/)
+[![Downloads](https://pepy.tech/badge/conflens)](https://pepy.tech/project/conflens)
+[![Python versions](https://img.shields.io/pypi/pyversions/conflens?logo=python&logoColor=white)](https://pypi.org/project/conflens/)
 [![Stars](https://img.shields.io/github/stars/picaultj/conflens?logo=github&style=flat)](https://github.com/picaultj/conflens/stargazers)
 [![Last commit](https://img.shields.io/github/last-commit/picaultj/conflens?logo=github)](https://github.com/picaultj/conflens/commits/main)
 [![Issues](https://img.shields.io/github/issues/picaultj/conflens?logo=github)](https://github.com/picaultj/conflens/issues)
 [![License: MPL 2.0](https://img.shields.io/badge/license-MPL%202.0-brightgreen.svg)](LICENSE)
-[![Python 3.13+](https://img.shields.io/badge/python-3.13%2B-blue.svg?logo=python&logoColor=white)](https://www.python.org/)
 [![uv](https://img.shields.io/badge/managed%20by-uv-DE5FE9.svg?logo=uv&logoColor=white)](https://docs.astral.sh/uv/)
 [![Built with NiceGUI](https://img.shields.io/badge/UI-NiceGUI-2b6cb0.svg)](https://nicegui.io)
 
@@ -50,7 +50,14 @@ A desktop-style web app (built with [NiceGUI](https://nicegui.io)) that:
 
 ## Quick start
 
-Requires Python 3.13+ and [uv](https://docs.astral.sh/uv/).
+Install from PyPI (Python 3.13+) and run:
+
+```bash
+pip install conflens
+conflens                                   # → http://localhost:6868
+```
+
+Or from a clone, with [uv](https://docs.astral.sh/uv/):
 
 ```bash
 uv sync                                   # Claude, OpenAI, LiteLLM work out of the box
@@ -63,8 +70,20 @@ uv run conflens                           # or: uv run python run.py
 
 Then open <http://localhost:6868>.
 
-Keys are read from `.env` (loaded automatically) or the process environment;
-you can also paste a key into the app's **API key** field at runtime.
+**Configuration.** `conflens` needs an LLM provider key, supplied any of three
+ways:
+
+- **Environment variable** — `export ANTHROPIC_API_KEY=…` (or `OPENAI_API_KEY`,
+  plus `OPENAI_BASE_URL` for an OpenAI-compatible endpoint; `LITELLM_API_KEY`).
+- **A `.env` file** in the directory you launch `conflens` from — same keys, one
+  `NAME=value` per line. It's loaded automatically from the current working
+  directory (from a clone, copy [`.env.example`](.env.example) as a starting
+  point). Real environment variables take precedence over `.env`.
+- **The in-app “API key” field** at runtime.
+
+OpenReview venues (ICLR / NeurIPS) additionally need `OPENREVIEW_TOKEN`, or
+`OPENREVIEW_USERNAME` + `OPENREVIEW_PASSWORD` — set the same way, or typed into
+the fields that appear in the UI when you pick the OpenReview source.
 
 `uv` provisions the right Python automatically (pinned to 3.13 via
 `.python-version`); you don't need to install it yourself.
@@ -294,7 +313,13 @@ stages use a fake client), so they're fast and deterministic.
 
 Releases are automated (`.github/workflows/release.yml`): when a PR is **merged
 into `main`**, the workflow bumps the version in `pyproject.toml`, commits it
-back to `main`, and creates a matching `vX.Y.Z` **tag**. The bump is a **patch**
-by default — add a **`minor`** or **`major`** label to the PR to bump those
-instead.
+back to `main`, creates a matching `vX.Y.Z` **tag**, then **builds and publishes
+the package to [PyPI](https://pypi.org/project/conflens/)** (`pip install
+conflens`). The bump is a **patch** by default — add a **`minor`** or
+**`major`** label to the PR to bump those instead.
+
+Publishing needs a repo secret **`PYPI_API_TOKEN`** (a PyPI API token; the
+workflow uploads with `twine` as `__token__`). Add it under *Settings → Secrets
+and variables → Actions*. Without it the version bump/tag still succeed and only
+the publish step fails.
 
