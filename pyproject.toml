@@ -5,6 +5,17 @@ description = "Browse, theme-classify, and topic-model conference papers with a 
 readme = "README.md"
 requires-python = ">=3.13"
 license = { text = "MPL-2.0" }
+authors = [
+    { name = "Jérôme Picault", email = "jerome.picault@rte-france.com" },
+]
+maintainers = [
+    { name = "Jérôme Picault", email = "jerome.picault@rte-france.com" },
+]
+keywords = ["topics", "conferences", "LLM", "topic analysis", "report"]
+classifiers = [
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Development Status :: 4 - Beta",
+]
 dependencies = [
     "nicegui>=2.0",
     "anthropic>=0.40",
@@ -22,6 +33,11 @@ bertopic = ["bertopic>=0.16"]
 [project.scripts]
 conflens = "conflens.cli:main"
 conference-analyzer = "conflens.cli:main"  # backward-compatible alias
+
+[project.urls]
+homepage = "https://github.com/picaultj/conflens"
+repository = "https://github.com/picaultj/conflens"
+
 
 [dependency-groups]
 # Installed by default with `uv sync`; used for tests + linting / CI.
