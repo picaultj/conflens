@@ -50,7 +50,14 @@ A desktop-style web app (built with [NiceGUI](https://nicegui.io)) that:
 
 ## Quick start
 
-Requires Python 3.13+ and [uv](https://docs.astral.sh/uv/).
+Install from PyPI (Python 3.13+) and run:
+
+```bash
+pip install conflens
+conflens                                   # → http://localhost:6868
+```
+
+Or from a clone, with [uv](https://docs.astral.sh/uv/):
 
 ```bash
 uv sync                                   # Claude, OpenAI, LiteLLM work out of the box
@@ -294,7 +301,13 @@ stages use a fake client), so they're fast and deterministic.
 
 Releases are automated (`.github/workflows/release.yml`): when a PR is **merged
 into `main`**, the workflow bumps the version in `pyproject.toml`, commits it
-back to `main`, and creates a matching `vX.Y.Z` **tag**. The bump is a **patch**
-by default — add a **`minor`** or **`major`** label to the PR to bump those
-instead.
+back to `main`, creates a matching `vX.Y.Z` **tag**, then **builds and publishes
+the package to [PyPI](https://pypi.org/project/conflens/)** (`pip install
+conflens`). The bump is a **patch** by default — add a **`minor`** or
+**`major`** label to the PR to bump those instead.
+
+Publishing needs a repo secret **`PYPI_API_TOKEN`** (a PyPI API token; the
+workflow uploads with `twine` as `__token__`). Add it under *Settings → Secrets
+and variables → Actions*. Without it the version bump/tag still succeed and only
+the publish step fails.
 

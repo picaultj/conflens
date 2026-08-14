@@ -1,5 +1,5 @@
 [project]
-name = "conference-analyzer"
+name = "conflens"
 version = "0.1.13"
 description = "Browse, theme-classify, and topic-model conference papers with a NiceGUI UI."
 readme = "README.md"
