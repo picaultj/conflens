@@ -16,12 +16,20 @@ def _index() -> None:
 
 
 def _load_env() -> None:
-    """Load variables from a local .env file, if present."""
+    """Load a ``.env`` from the current working directory (or above), if present.
+
+    ``find_dotenv(usecwd=True)`` searches from the directory the user runs
+    ``conflens`` in — not the installed package location — so a pip-installed CLI
+    picks up a ``.env`` sitting next to where it's launched. Real environment
+    variables always take precedence (``load_dotenv`` doesn't override them).
+    """
     try:
-        from dotenv import load_dotenv
+        from dotenv import find_dotenv, load_dotenv
     except ImportError:  # python-dotenv is a dependency, but stay defensive
         return
-    load_dotenv()
+    path = find_dotenv(usecwd=True)
+    if path:
+        load_dotenv(path)
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
