@@ -309,17 +309,3 @@ commit** and every PR:
 The tests are network- and API-free (parsers run on HTML fixtures; the LLM
 stages use a fake client), so they're fast and deterministic.
 
-### Releasing
-
-Releases are automated (`.github/workflows/release.yml`): when a PR is **merged
-into `main`**, the workflow bumps the version in `pyproject.toml`, commits it
-back to `main`, creates a matching `vX.Y.Z` **tag**, then **builds and publishes
-the package to [PyPI](https://pypi.org/project/conflens/)** (`pip install
-conflens`). The bump is a **patch** by default — add a **`minor`** or
-**`major`** label to the PR to bump those instead.
-
-Publishing needs a repo secret **`PYPI_API_TOKEN`** (a PyPI API token; the
-workflow uploads with `twine` as `__token__`). Add it under *Settings → Secrets
-and variables → Actions*. Without it the version bump/tag still succeed and only
-the publish step fails.
-
